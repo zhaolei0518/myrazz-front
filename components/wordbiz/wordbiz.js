@@ -1,7 +1,9 @@
 export default { 
 	data(){
 		return{
-			number:2, //展示卡片数量，同时设置animationData对象
+			page:1,
+			page_size:10,
+			number:10, //展示卡片数量，同时设置animationData对象
 			moveRotate:{ x:0,y:0 }, //设置位移图片旋转角度距离  card中心点 - 指向坐标
 			delMoveD: uni.getSystemInfoSync().screenHeight,//设置删除移动距离
 			touchMoveD: 100,//设置card移动距离,   card移动距离/touchMoveD = 其他card变化比率
@@ -37,7 +39,7 @@ export default {
 	async mounted() {
 		
 		this.createAnimation()
-		await this.getData()
+		await this.getData(this.page,this.page_size)
 	},
 	methods:{
 		//初始值设置
@@ -45,7 +47,7 @@ export default {
 			
 		},
 		//获取数据
-		getData(){
+		getData(page,page_size){
 			
 		},
 		createAnimation(){
@@ -102,11 +104,6 @@ export default {
 			}else{
 				this.touchAnimation.rotate(angle).step();
 			}
-			
-			
-			
-			
-			
 			this.animationData[0] = this.touchAnimation.export()
 			
 			//其他card动画
@@ -132,9 +129,7 @@ export default {
 			this.moveJudge(this.moveX,this.moveY,ratio)
 		},
 		touchend(e){
-			
 			this.endJudge(this.moveX,this.moveY)
-			
 		},
 		//触摸中判断
 		moveJudge(x,y,ratio){
@@ -148,7 +143,7 @@ export default {
 		},
 		//返回card
 		_back(){
-			
+			console.log("_back-------------");
 			let { oldMove } = this
 			//移动图片旋转角度
 			let angle = this.calcAngleDegrees(this.moveX- this.moveRotate.x,this.moveY- this.moveRotate.y )
@@ -201,6 +196,7 @@ export default {
 		},
 		//删除card
 		_del(){
+		
 			if(this.type) {
 				//#ifdef APP-PLUS
 				this.delFlag = true
@@ -221,14 +217,21 @@ export default {
 				for (var i = 1; i < this.number; i++) {
 					this.animationData[i] = this.moveAnimation.export()
 				}
-				
-				this.delCard(this.moveX,this.moveY)
-				this.moveX = 0
-				this.moveY = 0
-				this.dataList[0].moveX = 0
-				this.dataList[0].moveY = 0
-				this.dataList.splice(0,1)
-				if(this.dataList.length<=this.number) this.getData()
+				// 展示下一个单词
+				var pageIdx = this.nextCard(this.moveX,this.moveY)
+				// this.moveX = 0
+				// this.moveY = 0
+				// this.dataList[0].moveX = 0
+				// this.dataList[0].moveY = 0
+				// this.dataList.splice(0,1)
+			
+				console.log("_del---------------",this.dataList.length,pageIdx)
+				// if(pageIdx+1 == this.page_size*this.page) {
+					
+				// 	this.page++
+				// 	console.log("load new words",this.page);
+				// 	this.getData(this.page,this.page_size)
+				// }
 				if(this.type) {
 					//#ifdef APP-PLUS
 					this.delFlag = false
@@ -254,8 +257,8 @@ export default {
 				this.animationData[i] = this.endanimation.export()
 			}
 		},
-		delCard(){
-			console.log("del-crad",this.dataList[0])
+		nextCard(){
+			console.log("parent del-crad-js",this.dataList[0])
 		},
 		calcAngleDegrees(x, y) {
 			return Math.atan2(y, x) * 180 / Math.PI + 90;
@@ -277,10 +280,14 @@ export default {
 				}
 			}
 		},
-		dataList:{
+		dataList:{ // 数据变化
 			handler(newVal,oldVal){
+				// this.number = newVal.length;
+				console.log("data-list-handler",newVal.length, oldVal.length);
 				for (let item of newVal) {
 					if(!item._id){
+						console.log("data-list-handler init",this.cardId);
+						
 						item._id = this.cardId++
 						item.moveX = 0
 						item.moveY = 0

@@ -1,14 +1,8 @@
 <template>
 	<view class="page" :style="{ height: `${sysHeight}px`, width: `${sysWidth}px` }">
 		<view class="titleView" :style="{ bottom: `${40}px` }">
-			{{pageIndex}}/{{totalWord}}
+			{{pageIndex+1}}/{{totalWord}}
 		</view>
-	<!-- 	<view>
-			<button @click="deleteWord()"  style="width: 100rpx;height: 100rpx;color: #FFFFFF;background-color: #DD001C;" type="default">删除</button>
-				<button @tap="updateWordType(0)" style="width: 80rpx;height: 100rpx;color: #FFFFFF;background-color: #007AFF;" type="default">动物</button>
-				<button @tap="updateWordType(1)" style="width: 80rpx;height: 100rpx;color: #FFFFFF;background-color: #F0AD4E;" type="default">食物</button>
-				<button @tap="updateWordType(2)" style="width: 80rpx;height: 100rpx;color: #FFFFFF;background-color: #3F536E;" type="default">日常</button>
-		</view> -->
 		<view
 			v-for="(item, index) in dataList"
 			class="move-view"
@@ -32,17 +26,13 @@
 			<view class="cardBox"><card-box :thumbnail="`${apiHost}/api/files/${item.collectionId}/${item.id}/${item.thumbnail}`" :bgColor="item.bgColor"  :en="item.en" :zh="item.zh" ref="cardBox"></card-box></view>
 	
 		</view>
-		<!-- <view class="actionBtnBgView" >
-			<image class="actionImg" src="../../static/common/ic_btn_cn~iphone.png" mode="aspectFit"></image>
-			<image class="actionImg" src="../../static/common/ic_btn_en~iphone.png" mode="aspectFit"></image>
-		</view> -->
 		
 		</view>
 	</view>
 </template>
 
 <script>
-import clCardDel from '@/components/cl-cardDel/cl-cardDel';
+import wordbiz from '@/components/wordbiz/wordbiz.js';
 import cardBox from './card-box';
 import PocketBase from 'pocketbase';
 
@@ -51,13 +41,13 @@ import PocketBase from 'pocketbase';
 let interstitialAd = null
 
 export default {
-	mixins: [clCardDel],
+	mixins: [wordbiz],
 	components: { cardBox },
 	data() {
 		return {
 			words:[],
 			currentShowWordInfo:null,
-			pageIndex:1,
+			pageIndex:0,
 			totalWord:0,
 			bgViewColors : [
 				'#198AFA',
@@ -83,115 +73,43 @@ export default {
 			apiHost:'https://www.word.heluobo.top'
 		};
 	},
-	async onLoad(options) {
+	onLoad(options) {
 		console.log(options)
 		uni.setNavigationBarTitle({
 			title:options.title
 		})
-		// const eventChannel = this.getOpenerEventChannel();
-		  // 监听acceptDataFromOpenerPage事件，获取上一页面通过eventChannel传送到当前页面的数据
-		// eventChannel.on('acceptDataFromOpenerPage', function(data) {
-		//     console.log(data)
-		// 	options.words = data.words;
-		// 	console.log(options);
-		// })
-		var wordList = await this.getWordsByCat(options.cat)
-		console.log(wordList.items[0].en)
-		
-		this.totalWord = wordList.totalItems
-		this.dataList = wordList.items;
-		console.log(options.cat)
+	
 		console.log("onload---------------------------")
-		// var words = JSON.parse(decodeURIComponent(words));
-		
-		this.originWords = wordList.items;
-		console.log(this.originWords)
-		
-		
-		this.dataGroup = wordList.items;
-		
-		// 在页面onLoad回调事件中创建插屏广告实例
-		// if (wx.createInterstitialAd) {
-		//   interstitialAd = wx.createInterstitialAd({
-		//     adUnitId: 'adunit-057d2daa76faf2fa'
-		//   })
-		//   interstitialAd.onLoad(() => {})
-		//   interstitialAd.onError((err) => {})
-		//   interstitialAd.onClose(() => {})
-		// }
-		
-		setTimeout(() => {
-			// 在适合的场景显示插屏广告
-			if (interstitialAd) {
-			  interstitialAd.show().catch((err) => {
-			    console.error(err)
-			  })
-			}
-		}, 8000);
-
 	},
 	mounted() {
 	
 	},
 	methods: {
-		async getWordsByCat(cat){
-			if (cat== undefined){
-				cat = "animal"
-			}
-			console.log("getWordsByCat from api")
+		//获取数据
+		async getData(page,page_size) {
+			var wordlist = await this.getWordsByCat(this.options.cat,page,page_size)
+			var that = this
+			let promise = new Promise((resolve, reject) => {
+				console.log("getData")
+				
+				// that.dataList = that.dataList.concat(wordlist.items);
+				that.dataList = wordlist.items
+				that.totalWord = wordlist.totalItems;
+				that.currentShowWordInfo = that.dataList[this.pageIndex];
+				// that.ScanAudio(that.currentShowWordInfo.voiceURL);
+				resolve();
+			});
+			return promise;
+		},
+		async getWordsByCat(cat,page,page_size){
+		
+			console.log("getWordsByCat from api", page, page_size)
 			const pb = new PocketBase(this.apiHost);
-			const wordList = await pb.collection('word').getList(1, 3, {
+			const wordList = await pb.collection('word').getList(page,page_size, {
 				filter: `cat="${cat}"`,
 			});
 			return wordList
 		},
-		// deleteWord(){
-			// console.log("deleteWord=====")
-			// uni.showLoading({
-				
-			// })
-			// var that = this
-			// uniCloud.callFunction({
-			// name:'deleteWord',
-			// data:{
-			// 		"enWord":this.currentShowWordInfo.enTitle,
-			// 		"zhWord":this.currentShowWordInfo.zhTitle
-			// },
-			// success:(res)=>{
-			// 	uni.hideLoading()
-				
-			// 	uni.showToast({
-			// 		title:res.result.data
-			// 	})
-			// 	console.log(res);
-			// 	console.log('---1--2-3');
-			// }
-			// })
-		// },
-		// updateWordType(type){
-		// 	console.log("updateWordType=====")
-		// 	console.log(this.currentShowWordInfo)
-		// 	var that = this
-		// 	uni.showLoading({
-				
-		// 	})
-		// 	uniCloud.callFunction({
-		// 	name:'updateWordInfo',
-		// 	data:{
-		// 			"enWord":this.currentShowWordInfo.enTitle,
-		// 			"zhWord":this.currentShowWordInfo.zhTitle,
-		// 			"type":type
-		// 	},
-		// 	success:(res)=>{
-		// 		uni.hideLoading()
-		// 		console.log(res);
-		// 		console.log('---1--2-3');
-		// 		uni.showToast({
-		// 			title:res.result.data
-		// 		})
-		// 	}
-		// 	})
-		// },
 		tapLove() {
 			if (this.dataList.length == 0) return;
 			this.moveX = 10; //设置角度y为0水平
@@ -217,19 +135,7 @@ export default {
 				y: uni.getSystemInfoSync().screenHeight
 			};
 		},
-		//获取数据
-		getData() {
-			var that = this
-			let promise = new Promise((resolve, reject) => {
-				console.log("---getData---")
-				
-				that.dataList = that.dataGroup.splice(0,10)
-				that.currentShowWordInfo = that.dataList[0]
-				// that.ScanAudio(that.currentShowWordInfo.voiceURL);
-				resolve();
-			});
-			return promise;
-		},
+		
 		//触摸中判断
 		moveJudge(x, y, ratio) {
 			let el = this.$refs.cardBox[0];
@@ -253,17 +159,9 @@ export default {
 				el.clearAnimation();
 			}
 		},
-		//删除card时
-		delCard(x, y) {
-			if (x > 0) {
-				console.log(this.dataList[0], '喜欢');
-			} else {
-				console.log(this.dataList[0], '不喜欢');
-			}
-			// if(this.dataList.length == 1){
-			// 	return
-			// }
-	
+		//展示下一个单词
+		nextCard(x, y) {
+			console.log("nextCard----------",this.dataList.length)	
 			if(this.pageIndex == this.totalWord){
 				this.ScanAudio('/static/voice/sound_unbelievable.mp3');
 				var that = this
@@ -296,11 +194,10 @@ export default {
 				this.pageIndex += 1
 			}
 			
-			console.log(this.dataList)
-			if(this.dataList.length > 1){
-				this.currentShowWordInfo = this.dataList[1]
-				this.ScanAudio(this.currentShowWordInfo.voice);	
-			}			
+			// this.currentShowWordInfo = this.dataList[this.pageIndex]
+			console.log("next-word=currentShowWordInfo",this.currentShowWordInfo);
+			// this.ScanAudio(`${this.apiHost}/api/files/${this.currentShowWordInfo.collectionId}/${this.currentShowWordInfo.id}/${this.currentShowWordInfo.voice}`);			
+			return this.pageIndex
 		},
 		tapCard(item) {
 			console.log(item, '点击');
