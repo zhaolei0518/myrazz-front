@@ -39,6 +39,15 @@ function initWx() {
   return newWx;
 }
 target[key] = initWx();
+if (!target[key].canIUse('getAppBaseInfo')) {
+  target[key].getAppBaseInfo = target[key].getSystemInfoSync;
+}
+if (!target[key].canIUse('getWindowInfo')) {
+  target[key].getWindowInfo = target[key].getSystemInfoSync;
+}
+if (!target[key].canIUse('getDeviceInfo')) {
+  target[key].getDeviceInfo = target[key].getSystemInfoSync;
+}
 var _default = target[key];
 exports.default = _default;
 
@@ -351,6 +360,10 @@ var promiseInterceptor = {
     }
     return new Promise(function (resolve, reject) {
       res.then(function (res) {
+        if (!res) {
+          resolve(res);
+          return;
+        }
         if (res[0]) {
           reject(res[0]);
         } else {
@@ -360,7 +373,7 @@ var promiseInterceptor = {
     });
   }
 };
-var SYNC_API_RE = /^\$|Window$|WindowStyle$|sendHostEvent|sendNativeEvent|restoreGlobal|requireGlobal|getCurrentSubNVue|getMenuButtonBoundingClientRect|^report|interceptors|Interceptor$|getSubNVueById|requireNativePlugin|upx2px|hideKeyboard|canIUse|^create|Sync$|Manager$|base64ToArrayBuffer|arrayBufferToBase64|getLocale|setLocale|invokePushCallback|getWindowInfo|getDeviceInfo|getAppBaseInfo|getSystemSetting|getAppAuthorizeSetting|initUTS|requireUTS|registerUTS/;
+var SYNC_API_RE = /^\$|__f__|Window$|WindowStyle$|sendHostEvent|sendNativeEvent|restoreGlobal|requireGlobal|getCurrentSubNVue|getMenuButtonBoundingClientRect|^report|interceptors|Interceptor$|getSubNVueById|requireNativePlugin|rpx2px|upx2px|hideKeyboard|canIUse|^create|Sync$|Manager$|base64ToArrayBuffer|arrayBufferToBase64|getLocale|setLocale|invokePushCallback|getWindowInfo|getDeviceInfo|getAppBaseInfo|getSystemSetting|getAppAuthorizeSetting|initUTS|requireUTS|registerUTS/;
 var CONTEXT_API_RE = /^create|Manager$/;
 
 // Context例外情况
@@ -433,11 +446,14 @@ var isIOS = false;
 var deviceWidth = 0;
 var deviceDPR = 0;
 function checkDeviceWidth() {
-  var _wx$getSystemInfoSync = wx.getSystemInfoSync(),
-    platform = _wx$getSystemInfoSync.platform,
-    pixelRatio = _wx$getSystemInfoSync.pixelRatio,
-    windowWidth = _wx$getSystemInfoSync.windowWidth; // uni=>wx runtime 编译目标是 uni 对象，内部不允许直接使用 uni
-
+  var windowWidth, pixelRatio, platform;
+  {
+    var windowInfo = typeof wx.getWindowInfo === 'function' && wx.getWindowInfo() ? wx.getWindowInfo() : wx.getSystemInfoSync();
+    var deviceInfo = typeof wx.getDeviceInfo === 'function' && wx.getDeviceInfo() ? wx.getDeviceInfo() : wx.getSystemInfoSync();
+    windowWidth = windowInfo.windowWidth;
+    pixelRatio = windowInfo.pixelRatio;
+    platform = deviceInfo.platform;
+  }
   deviceWidth = windowWidth;
   deviceDPR = pixelRatio;
   isIOS = platform === 'ios';
@@ -470,9 +486,18 @@ var LOCALE_EN = 'en';
 var LOCALE_FR = 'fr';
 var LOCALE_ES = 'es';
 var messages = {};
+function getLocaleLanguage() {
+  var localeLanguage = '';
+  {
+    var appBaseInfo = typeof wx.getAppBaseInfo === 'function' && wx.getAppBaseInfo() ? wx.getAppBaseInfo() : wx.getSystemInfoSync();
+    var language = appBaseInfo && appBaseInfo.language ? appBaseInfo.language : LOCALE_EN;
+    localeLanguage = normalizeLocale(language) || LOCALE_EN;
+  }
+  return localeLanguage;
+}
 var locale;
 {
-  locale = normalizeLocale(wx.getSystemInfoSync().language) || LOCALE_EN;
+  locale = getLocaleLanguage();
 }
 function initI18nMessages() {
   if (!isEnableLocale()) {
@@ -594,7 +619,7 @@ function getLocale$1() {
       return app.$vm.$locale;
     }
   }
-  return normalizeLocale(wx.getSystemInfoSync().language) || LOCALE_EN;
+  return getLocaleLanguage();
 }
 function setLocale$1(locale) {
   var app = isFn(getApp) ? getApp() : false;
@@ -628,6 +653,7 @@ var interceptors = {
 var baseApi = /*#__PURE__*/Object.freeze({
   __proto__: null,
   upx2px: upx2px,
+  rpx2px: upx2px,
   getLocale: getLocale$1,
   setLocale: setLocale$1,
   onLocaleChange: onLocaleChange,
@@ -722,6 +748,43 @@ function addSafeAreaInsets(result) {
     };
   }
 }
+function getOSInfo(system, platform) {
+  var osName = '';
+  var osVersion = '';
+  if (platform && "mp-weixin" === 'mp-baidu') {
+    osName = platform;
+    osVersion = system;
+  } else {
+    osName = system.split(' ')[0] || platform;
+    osVersion = system.split(' ')[1] || '';
+  }
+  osName = osName.toLocaleLowerCase();
+  switch (osName) {
+    case 'harmony': // alipay
+    case 'ohos': // weixin
+    case 'openharmony':
+      // feishu
+      osName = 'harmonyos';
+      break;
+    case 'iphone os':
+      // alipay
+      osName = 'ios';
+      break;
+    case 'mac': // weixin qq
+    case 'darwin':
+      // feishu
+      osName = 'macos';
+      break;
+    case 'windows_nt':
+      // feishu
+      osName = 'windows';
+      break;
+  }
+  return {
+    osName: osName,
+    osVersion: osVersion
+  };
+}
 function populateParameters(result) {
   var _result$brand = result.brand,
     brand = _result$brand === void 0 ? '' : _result$brand,
@@ -743,12 +806,9 @@ function populateParameters(result) {
   var extraParam = {};
 
   // osName osVersion
-  var osName = '';
-  var osVersion = '';
-  {
-    osName = system.split(' ')[0] || '';
-    osVersion = system.split(' ')[1] || '';
-  }
+  var _getOSInfo = getOSInfo(system, platform),
+    osName = _getOSInfo.osName,
+    osVersion = _getOSInfo.osVersion;
   var hostVersion = version;
 
   // deviceType
@@ -770,7 +830,7 @@ function populateParameters(result) {
   var _SDKVersion = SDKVersion;
 
   // hostLanguage
-  var hostLanguage = language.replace(/_/g, '-');
+  var hostLanguage = (language || '').replace(/_/g, '-');
 
   // wx.getAccountInfoSync
 
@@ -780,8 +840,9 @@ function populateParameters(result) {
     appVersion: "1.0.0",
     appVersionCode: "100",
     appLanguage: getAppLanguage(hostLanguage),
-    uniCompileVersion: "4.29",
-    uniRuntimeVersion: "4.29",
+    uniCompileVersion: "4.66",
+    uniCompilerVersion: "4.66",
+    uniRuntimeVersion: "4.66",
     uniPlatform: undefined || "mp-weixin",
     deviceBrand: deviceBrand,
     deviceModel: model,
@@ -804,7 +865,8 @@ function populateParameters(result) {
     ua: undefined,
     hostPackageName: undefined,
     browserName: undefined,
-    browserVersion: undefined
+    browserVersion: undefined,
+    isUniAppX: false
   };
   Object.assign(result, parameters, extraParam);
 }
@@ -872,7 +934,7 @@ var getAppBaseInfo = {
       SDKVersion = _result.SDKVersion,
       theme = _result.theme;
     var _hostName = getHostName(result);
-    var hostLanguage = language.replace('_', '-');
+    var hostLanguage = (language || '').replace('_', '-');
     result = sortObject(Object.assign(result, {
       appId: "__UNI__B2B39EE",
       appName: "myrazz",
@@ -883,7 +945,12 @@ var getAppBaseInfo = {
       hostLanguage: hostLanguage,
       hostName: _hostName,
       hostSDKVersion: SDKVersion,
-      hostTheme: theme
+      hostTheme: theme,
+      isUniAppX: false,
+      uniPlatform: undefined || "mp-weixin",
+      uniCompileVersion: "4.66",
+      uniCompilerVersion: "4.66",
+      uniRuntimeVersion: "4.66"
     }));
   }
 };
@@ -891,14 +958,23 @@ var getDeviceInfo = {
   returnValue: function returnValue(result) {
     var _result2 = result,
       brand = _result2.brand,
-      model = _result2.model;
+      model = _result2.model,
+      _result2$system = _result2.system,
+      system = _result2$system === void 0 ? '' : _result2$system,
+      _result2$platform = _result2.platform,
+      platform = _result2$platform === void 0 ? '' : _result2$platform;
     var deviceType = getGetDeviceType(result, model);
     var deviceBrand = getDeviceBrand(brand);
     useDeviceId(result);
+    var _getOSInfo2 = getOSInfo(system, platform),
+      osName = _getOSInfo2.osName,
+      osVersion = _getOSInfo2.osVersion;
     result = sortObject(Object.assign(result, {
       deviceType: deviceType,
       deviceBrand: deviceBrand,
-      deviceModel: model
+      deviceModel: model,
+      osName: osName,
+      osVersion: osVersion
     }));
   }
 };
@@ -1248,6 +1324,12 @@ var offPushMessage = function offPushMessage(fn) {
     }
   }
 };
+function __f__(type) {
+  for (var _len3 = arguments.length, args = new Array(_len3 > 1 ? _len3 - 1 : 0), _key3 = 1; _key3 < _len3; _key3++) {
+    args[_key3 - 1] = arguments[_key3];
+  }
+  console[type].apply(console, args);
+}
 var baseInfo = wx.getAppBaseInfo && wx.getAppBaseInfo();
 if (!baseInfo) {
   baseInfo = wx.getSystemInfoSync();
@@ -1260,7 +1342,8 @@ var api = /*#__PURE__*/Object.freeze({
   getPushClientId: getPushClientId,
   onPushMessage: onPushMessage,
   offPushMessage: offPushMessage,
-  invokePushCallback: invokePushCallback
+  invokePushCallback: invokePushCallback,
+  __f__: __f__
 });
 var mocks = ['__route__', '__wxExparserNodeId__', '__wxWebviewId__'];
 function findVmByVueId(vm, vuePid) {
@@ -1402,8 +1485,8 @@ var customize = cached(function (str) {
 function initTriggerEvent(mpInstance) {
   var oldTriggerEvent = mpInstance.triggerEvent;
   var newTriggerEvent = function newTriggerEvent(event) {
-    for (var _len3 = arguments.length, args = new Array(_len3 > 1 ? _len3 - 1 : 0), _key3 = 1; _key3 < _len3; _key3++) {
-      args[_key3 - 1] = arguments[_key3];
+    for (var _len4 = arguments.length, args = new Array(_len4 > 1 ? _len4 - 1 : 0), _key4 = 1; _key4 < _len4; _key4++) {
+      args[_key4 - 1] = arguments[_key4];
     }
     // 事件名统一转驼峰格式，仅处理：当前组件为 vue 组件、当前组件为 vue 组件子组件
     if (this.$vm || this.dataset && this.dataset.comType) {
@@ -1430,8 +1513,8 @@ function initHook(name, options, isComponent) {
     markMPComponent(this);
     initTriggerEvent(this);
     if (oldHook) {
-      for (var _len4 = arguments.length, args = new Array(_len4), _key4 = 0; _key4 < _len4; _key4++) {
-        args[_key4] = arguments[_key4];
+      for (var _len5 = arguments.length, args = new Array(_len5), _key5 = 0; _key5 < _len5; _key5++) {
+        args[_key5] = arguments[_key5];
       }
       return oldHook.apply(this, args);
     }
@@ -2110,10 +2193,19 @@ function parseBaseApp(vm, _ref4) {
       appOptions[name] = methods[name];
     });
   }
-  initAppLocale(_vue.default, vm, normalizeLocale(wx.getSystemInfoSync().language) || LOCALE_EN);
+  initAppLocale(_vue.default, vm, getLocaleLanguage$1());
   initHooks(appOptions, hooks);
   initUnknownHooks(appOptions, vm.$options);
   return appOptions;
+}
+function getLocaleLanguage$1() {
+  var localeLanguage = '';
+  {
+    var appBaseInfo = wx.getAppBaseInfo();
+    var language = appBaseInfo && appBaseInfo.language ? appBaseInfo.language : LOCALE_EN;
+    localeLanguage = normalizeLocale(language) || LOCALE_EN;
+  }
+  return localeLanguage;
 }
 function parseApp(vm) {
   return parseBaseApp(vm, {
@@ -2331,16 +2423,16 @@ function createSubpackageApp(vm) {
   });
   if (isFn(appOptions.onShow) && wx.onAppShow) {
     wx.onAppShow(function () {
-      for (var _len5 = arguments.length, args = new Array(_len5), _key5 = 0; _key5 < _len5; _key5++) {
-        args[_key5] = arguments[_key5];
+      for (var _len6 = arguments.length, args = new Array(_len6), _key6 = 0; _key6 < _len6; _key6++) {
+        args[_key6] = arguments[_key6];
       }
       vm.__call_hook('onShow', args);
     });
   }
   if (isFn(appOptions.onHide) && wx.onAppHide) {
     wx.onAppHide(function () {
-      for (var _len6 = arguments.length, args = new Array(_len6), _key6 = 0; _key6 < _len6; _key6++) {
-        args[_key6] = arguments[_key6];
+      for (var _len7 = arguments.length, args = new Array(_len7), _key7 = 0; _key7 < _len7; _key7++) {
+        args[_key7] = arguments[_key7];
       }
       vm.__call_hook('onHide', args);
     });
@@ -2355,16 +2447,16 @@ function createPlugin(vm) {
   var appOptions = parseApp(vm);
   if (isFn(appOptions.onShow) && wx.onAppShow) {
     wx.onAppShow(function () {
-      for (var _len7 = arguments.length, args = new Array(_len7), _key7 = 0; _key7 < _len7; _key7++) {
-        args[_key7] = arguments[_key7];
+      for (var _len8 = arguments.length, args = new Array(_len8), _key8 = 0; _key8 < _len8; _key8++) {
+        args[_key8] = arguments[_key8];
       }
       vm.__call_hook('onShow', args);
     });
   }
   if (isFn(appOptions.onHide) && wx.onAppHide) {
     wx.onAppHide(function () {
-      for (var _len8 = arguments.length, args = new Array(_len8), _key8 = 0; _key8 < _len8; _key8++) {
-        args[_key8] = arguments[_key8];
+      for (var _len9 = arguments.length, args = new Array(_len9), _key9 = 0; _key9 < _len9; _key9++) {
+        args[_key9] = arguments[_key9];
       }
       vm.__call_hook('onHide', args);
     });
@@ -3395,7 +3487,7 @@ module.exports = _createClass, module.exports.__esModule = true, module.exports[
 __webpack_require__.r(__webpack_exports__);
 /* WEBPACK VAR INJECTION */(function(global) {/*!
  * Vue.js v2.6.11
- * (c) 2014-2023 Evan You
+ * (c) 2014-2024 Evan You
  * Released under the MIT License.
  */
 /*  */
@@ -3908,7 +4000,7 @@ var hasProto = '__proto__' in {};
 var inBrowser = typeof window !== 'undefined';
 var inWeex = typeof WXEnvironment !== 'undefined' && !!WXEnvironment.platform;
 var weexPlatform = inWeex && WXEnvironment.platform.toLowerCase();
-var UA = inBrowser && window.navigator.userAgent.toLowerCase();
+var UA = inBrowser && window.navigator && window.navigator.userAgent.toLowerCase();
 var isIE = UA && /msie|trident/.test(UA);
 var isIE9 = UA && UA.indexOf('msie 9.0') > 0;
 var isEdge = UA && UA.indexOf('edge/') > 0;
@@ -9466,9 +9558,9 @@ internalMixin(Vue);
 
 /***/ }),
 /* 26 */
-/*!*******************************************************************!*\
-  !*** /Users/zhaolei/Documents/HBuilderProjects/myrazz/pages.json ***!
-  \*******************************************************************/
+/*!***********************************************************************************!*\
+  !*** /Users/zhaolei/Documents/zhaolei_project/HBuilderProjects/myrazz/pages.json ***!
+  \***********************************************************************************/
 /*! no static exports found */
 /***/ (function(module, exports) {
 
@@ -9612,9 +9704,9 @@ function normalizeComponent (
 
 /***/ }),
 /* 33 */
-/*!*********************************************************************************!*\
-  !*** /Users/zhaolei/Documents/HBuilderProjects/myrazz/uni.promisify.adaptor.js ***!
-  \*********************************************************************************/
+/*!*************************************************************************************************!*\
+  !*** /Users/zhaolei/Documents/zhaolei_project/HBuilderProjects/myrazz/uni.promisify.adaptor.js ***!
+  \*************************************************************************************************/
 /*! no static exports found */
 /***/ (function(module, exports, __webpack_require__) {
 
@@ -10024,9 +10116,9 @@ module.exports = _asyncToGenerator, module.exports.__esModule = true, module.exp
 
 /***/ }),
 /* 51 */
-/*!**************************************************************************************!*\
-  !*** /Users/zhaolei/Documents/HBuilderProjects/myrazz/components/wordbiz/wordbiz.js ***!
-  \**************************************************************************************/
+/*!******************************************************************************************************!*\
+  !*** /Users/zhaolei/Documents/zhaolei_project/HBuilderProjects/myrazz/components/wordbiz/wordbiz.js ***!
+  \******************************************************************************************************/
 /*! no static exports found */
 /***/ (function(module, exports, __webpack_require__) {
 

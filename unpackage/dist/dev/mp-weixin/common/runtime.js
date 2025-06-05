@@ -104,46 +104,7 @@
 /******/ 		var promises = [];
 /******/
 /******/
-/******/ 		// mini-css-extract-plugin CSS loading
-/******/ 		var cssChunks = {"components/uni-nav-bar/uni-nav-bar":1,"components/xzj-firsthint/xzj-firsthint":1,"pages/cardDetail/card-box":1,"components/uni-nav-bar/uni-status-bar":1};
-/******/ 		if(installedCssChunks[chunkId]) promises.push(installedCssChunks[chunkId]);
-/******/ 		else if(installedCssChunks[chunkId] !== 0 && cssChunks[chunkId]) {
-/******/ 			promises.push(installedCssChunks[chunkId] = new Promise(function(resolve, reject) {
-/******/ 				var href = "" + ({"components/uni-nav-bar/uni-nav-bar":"components/uni-nav-bar/uni-nav-bar","components/xzj-firsthint/xzj-firsthint":"components/xzj-firsthint/xzj-firsthint","pages/cardDetail/card-box":"pages/cardDetail/card-box","components/uni-nav-bar/uni-status-bar":"components/uni-nav-bar/uni-status-bar"}[chunkId]||chunkId) + ".wxss";
-/******/ 				var fullhref = __webpack_require__.p + href;
-/******/ 				var existingLinkTags = document.getElementsByTagName("link");
-/******/ 				for(var i = 0; i < existingLinkTags.length; i++) {
-/******/ 					var tag = existingLinkTags[i];
-/******/ 					var dataHref = tag.getAttribute("data-href") || tag.getAttribute("href");
-/******/ 					if(tag.rel === "stylesheet" && (dataHref === href || dataHref === fullhref)) return resolve();
-/******/ 				}
-/******/ 				var existingStyleTags = document.getElementsByTagName("style");
-/******/ 				for(var i = 0; i < existingStyleTags.length; i++) {
-/******/ 					var tag = existingStyleTags[i];
-/******/ 					var dataHref = tag.getAttribute("data-href");
-/******/ 					if(dataHref === href || dataHref === fullhref) return resolve();
-/******/ 				}
-/******/ 				var linkTag = document.createElement("link");
-/******/ 				linkTag.rel = "stylesheet";
-/******/ 				linkTag.type = "text/css";
-/******/ 				linkTag.onload = resolve;
-/******/ 				linkTag.onerror = function(event) {
-/******/ 					var request = event && event.target && event.target.src || fullhref;
-/******/ 					var err = new Error("Loading CSS chunk " + chunkId + " failed.\n(" + request + ")");
-/******/ 					err.code = "CSS_CHUNK_LOAD_FAILED";
-/******/ 					err.request = request;
-/******/ 					delete installedCssChunks[chunkId]
-/******/ 					linkTag.parentNode.removeChild(linkTag)
-/******/ 					reject(err);
-/******/ 				};
-/******/ 				linkTag.href = fullhref;
 /******/
-/******/ 				var head = document.getElementsByTagName("head")[0];
-/******/ 				head.appendChild(linkTag);
-/******/ 			}).then(function() {
-/******/ 				installedCssChunks[chunkId] = 0;
-/******/ 			}));
-/******/ 		}
 /******/
 /******/ 		// JSONP chunk loading for javascript
 /******/

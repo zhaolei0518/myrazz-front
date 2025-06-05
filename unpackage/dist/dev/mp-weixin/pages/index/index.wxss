@@ -88,8 +88,7 @@
   /* width: 200rpx; */
 }
 @-webkit-keyframes shake-data-v-57280228 {
-0%,
-  100% {
+0%, 100% {
     -webkit-transform: translateX(0);
             transform: translateX(0);
 }
@@ -131,8 +130,7 @@
 }
 }
 @keyframes shake-data-v-57280228 {
-0%,
-  100% {
+0%, 100% {
     -webkit-transform: translateX(0);
             transform: translateX(0);
 }
@@ -173,4 +171,3 @@
             transform: translateX(-1px);
 }
 }
-
