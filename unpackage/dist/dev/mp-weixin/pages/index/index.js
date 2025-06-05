@@ -101,10 +101,10 @@ var components
 try {
   components = {
     uniNavBar: function () {
-      return __webpack_require__.e(/*! import() | components/uni-nav-bar/uni-nav-bar */ "components/uni-nav-bar/uni-nav-bar").then(__webpack_require__.bind(null, /*! @/components/uni-nav-bar/uni-nav-bar.vue */ 66))
+      return __webpack_require__.e(/*! import() | components/uni-nav-bar/uni-nav-bar */ "components/uni-nav-bar/uni-nav-bar").then(__webpack_require__.bind(null, /*! @/components/uni-nav-bar/uni-nav-bar.vue */ 63))
     },
     xzjFirsthint: function () {
-      return __webpack_require__.e(/*! import() | components/xzj-firsthint/xzj-firsthint */ "components/xzj-firsthint/xzj-firsthint").then(__webpack_require__.bind(null, /*! @/components/xzj-firsthint/xzj-firsthint.vue */ 73))
+      return __webpack_require__.e(/*! import() | components/xzj-firsthint/xzj-firsthint */ "components/xzj-firsthint/xzj-firsthint").then(__webpack_require__.bind(null, /*! @/components/xzj-firsthint/xzj-firsthint.vue */ 70))
     },
   }
 } catch (e) {
@@ -198,30 +198,30 @@ var _default = {
   data: function data() {
     return {
       items: [{
-        "en_name": "en_name",
-        "zh_name": "zh_name",
-        "cat": "animal",
+        "en_name": "level AA",
+        "zh_name": "AA",
+        "cat": "AA",
         "item_icon": "/static/animals/cat~iphone.png",
         "isLock": false,
         "item_color": "rgb(25, 138, 250)"
       }, {
-        "en_name": "en_name",
-        "zh_name": "zh_name",
-        "cat": "food",
+        "en_name": "level A",
+        "zh_name": "A",
+        "cat": "A",
         "item_icon": "/static/Foods/icon_foods~iphone.png",
         "isLock": true,
         "item_color": "rgb(39, 143, 116)"
       }, {
-        "en_name": "en_name",
-        "zh_name": "zh_name",
-        "cat": "life",
+        "en_name": "level B",
+        "zh_name": "B",
+        "cat": "B",
         "item_icon": "/static/DailyLife/icon_dailylife~iphone.png",
         "isLock": true,
         "item_color": "rgb(29, 123, 136)"
       }, {
-        "en_name": "en_name",
-        "zh_name": "zh_name",
-        "cat": "music",
+        "en_name": "level C",
+        "zh_name": "C",
+        "cat": "C",
         "item_icon": "/static/Phrases/listen_to_music~iphone.png",
         "isLock": true,
         "item_color": "rgb(19, 123, 126)"

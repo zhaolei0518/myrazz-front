@@ -2,7 +2,7 @@
 	<view  @tap="tapCard()"  class="cardBox" :style="{ backgroundColor: `${bgColor}` }">
 		<view class="top" ><image :class="'item-' + animation" class="img" :src="thumbnail" mode="widthFix"></image></view>
 		<view class="bottom">
-			<!-- <view class="bottomItem">{{ phoneticSymbol }}</view> -->
+			<view class="bottomItem">{{ phonetic }}</view>
 			<view class="bottomItem">{{ en }}</view>
 			<view class="bottomItem">{{ zh }}</view>
 		</view>
@@ -27,6 +27,10 @@ export default {
 		// 	default: ''
 		// },
 		en: {
+			type: String,
+			default: ''
+		},
+		phonetic: {
 			type: String,
 			default: ''
 		},
@@ -108,7 +112,7 @@ export default {
 	},
 	watch: {
 		cardData(newVal) {
-			console.log(newVal);
+			console.log("card-box---",newVal);
 			this.item = newVal;
 		}
 	}

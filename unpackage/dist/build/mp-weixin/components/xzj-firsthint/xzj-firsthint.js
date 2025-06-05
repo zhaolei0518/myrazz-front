@@ -1,0 +1,10 @@
+(global["webpackJsonp"]=global["webpackJsonp"]||[]).push([["components/xzj-firsthint/xzj-firsthint"],{"15e8":function(t,e,n){"use strict";n.r(e);var i=n("4d28"),a=n.n(i);for(var u in i)["default"].indexOf(u)<0&&function(t){n.d(e,t,(function(){return i[t]}))}(u);e["default"]=a.a},"4d28":function(t,e,n){"use strict";(function(t,n){Object.defineProperty(e,"__esModule",{value:!0}),e.default=void 0;var i={data:function(){return{SHOW_TOP:!1,SHOW_TOP_key:1,marRight:66,marTop:0}},props:{text:{type:String,default:"添加到我的小程序"},isCustom:{type:Boolean,default:!1}},onReady:function(){this.initTips()},methods:{initTips:function(){var e=t.getStorageSync("ADD-MYAPP-KEY-ONE"),i=+new Date;if(!(e&&i-e<2592e6)){var a=n.getSystemInfoSync(),u=n.getMenuButtonBoundingClientRect();a&&u&&(this.marRight=a.screenWidth-u.left-28,this.isCustom&&(this.marTop=u.bottom+u.top-a.statusBarHeight)),this.SHOW_TOP=!0}},okHandler:function(){this.SHOW_TOP_key;this.SHOW_TOP=!1,t.setStorage({key:"ADD-MYAPP-KEY-ONE",data:+new Date})}}};e.default=i}).call(this,n("df3c")["default"],n("3223")["default"])},"66a6":function(t,e,n){"use strict";n.r(e);var i=n("6ce7"),a=n("15e8");for(var u in a)["default"].indexOf(u)<0&&function(t){n.d(e,t,(function(){return a[t]}))}(u);n("da2e");var o=n("828b"),r=Object(o["a"])(a["default"],i["b"],i["c"],!1,null,"04cf2980",null,!1,i["a"],void 0);e["default"]=r.exports},"6ce7":function(t,e,n){"use strict";n.d(e,"b",(function(){return i})),n.d(e,"c",(function(){return a})),n.d(e,"a",(function(){}));var i=function(){var t=this.$createElement;this._self._c},a=[]},da2e:function(t,e,n){"use strict";var i=n("e625"),a=n.n(i);a.a},e625:function(t,e,n){}}]);
+;(global["webpackJsonp"] = global["webpackJsonp"] || []).push([
+    'components/xzj-firsthint/xzj-firsthint-create-component',
+    {
+        'components/xzj-firsthint/xzj-firsthint-create-component':(function(module, exports, __webpack_require__){
+            __webpack_require__('df3c')['createComponent'](__webpack_require__("66a6"))
+        })
+    },
+    [['components/xzj-firsthint/xzj-firsthint-create-component']]
+]);

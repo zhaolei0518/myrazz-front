@@ -23,7 +23,7 @@
 				opacity: index < number ? `${1 - (1 - opacity) * index}` : `${1 - (1 - opacity) * (number - 1)}`
 			}"
 		>
-			<view class="cardBox"><card-box :thumbnail="`${apiHost}/api/files/${item.collectionId}/${item.id}/${item.thumbnail}`" :bgColor="item.bgColor"  :en="item.en" :zh="item.zh" ref="cardBox"></card-box></view>
+			<view class="cardBox"><card-box :thumbnail="`${apiHost}api/files/${item.collectionId}/${item.id}/${item.thumbnail}`" :bgColor="item.bgColor"  :en="item.en" :zh="item.zh" :phonetic="item.phonetic" ref="cardBox"></card-box></view>
 	
 		</view>
 		
@@ -34,7 +34,6 @@
 <script>
 import wordbiz from '@/components/wordbiz/wordbiz.js';
 import cardBox from './card-box';
-import PocketBase from 'pocketbase';
 
 
 // 在页面中定义插屏广告
@@ -46,6 +45,7 @@ export default {
 	data() {
 		return {
 			words:[],
+			cat:"",
 			currentShowWordInfo:null,
 			pageIndex:0,
 			totalWord:0,
@@ -70,7 +70,7 @@ export default {
 			],
 			dataGroup:[],
 			originWords:[],
-			apiHost:'https://www.word.heluobo.top'
+			apiHost:'http://www.word.heluobo.top/'
 		};
 	},
 	onLoad(options) {
@@ -78,8 +78,9 @@ export default {
 		uni.setNavigationBarTitle({
 			title:options.title
 		})
-	
-		console.log("onload---------------------------")
+		this.cat = options.cat;
+		console.log("onload---------------------------",options)
+		
 	},
 	mounted() {
 	
@@ -87,16 +88,23 @@ export default {
 	methods: {
 		//获取数据
 		async getData(page,page_size) {
-			var wordlist = await this.getWordsByCat(this.options.cat,page,page_size)
+			
+			const wordlist = await this.getWordsByCat(this.cat,page,page_size)
+			console.log("getData-------",this.cat,wordlist)
 			var that = this
 			let promise = new Promise((resolve, reject) => {
-				console.log("getData")
+				console.log("getData",wordlist)
 				
-				// that.dataList = that.dataList.concat(wordlist.items);
-				that.dataList = wordlist.items
+				that.dataList = that.dataList.concat(wordlist.items);
+				// that.dataList = wordlist.items
 				that.totalWord = wordlist.totalItems;
-				that.currentShowWordInfo = that.dataList[this.pageIndex];
-				// that.ScanAudio(that.currentShowWordInfo.voiceURL);
+				if(page == 1){
+					this.currentShowWordInfo = that.dataList[0]
+					
+					this.ScanAudio(`${this.apiHost}api/files/${this.currentShowWordInfo.collectionId}/${this.currentShowWordInfo.id}/${this.currentShowWordInfo.voice}`);			
+					
+					
+				}
 				resolve();
 			});
 			return promise;
@@ -104,11 +112,28 @@ export default {
 		async getWordsByCat(cat,page,page_size){
 		
 			console.log("getWordsByCat from api", page, page_size)
-			const pb = new PocketBase(this.apiHost);
-			const wordList = await pb.collection('word').getList(page,page_size, {
-				filter: `cat="${cat}"`,
-			});
-			return wordList
+		
+			var result = await uni.request({
+			        url: this.apiHost + 'api/collections/word/records',
+			        method: 'GET',
+			        data: {
+			            page : page,
+			            perPage : page_size,
+			            filter : `cat="${cat}"`,
+			        }
+			    });
+		// 当请求成功时，result.data将包含API返回的数据
+			if (result.statusCode === 200) {
+			  const data = result.data;
+			  // 在这里处理返回的数据
+			  console.log('请求成功，返回的数据是：', data);
+				return data;
+			
+			} else {
+			  // 处理错误情况，例如请求失败或服务器返回了非200状态码
+			  console.error('请求失败，状态码：', result.statusCode);
+			}
+			return   
 		},
 		tapLove() {
 			if (this.dataList.length == 0) return;
@@ -194,15 +219,15 @@ export default {
 				this.pageIndex += 1
 			}
 			
-			// this.currentShowWordInfo = this.dataList[this.pageIndex]
-			console.log("next-word=currentShowWordInfo",this.currentShowWordInfo);
-			// this.ScanAudio(`${this.apiHost}/api/files/${this.currentShowWordInfo.collectionId}/${this.currentShowWordInfo.id}/${this.currentShowWordInfo.voice}`);			
-			return this.pageIndex
+			this.currentShowWordInfo = this.dataList[0]
+			console.log("next-word=currentShowWordInfo",this.currentShowWordInfo.zh);
+			this.ScanAudio(`${this.apiHost}api/files/${this.currentShowWordInfo.collectionId}/${this.currentShowWordInfo.id}/${this.currentShowWordInfo.voice}`);			
+			return
 		},
 		tapCard(item) {
 			console.log(item, '点击');
 			
-			this.ScanAudio(`${this.apiHost}/api/files/${item.collectionId}/${item.id}/${item.voice_slow}`);			
+			this.ScanAudio(`${this.apiHost}api/files/${item.collectionId}/${item.id}/${item.voice_slow}`);			
 		}
 		
 	}

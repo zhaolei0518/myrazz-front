@@ -2,8 +2,8 @@ export default {
 	data(){
 		return{
 			page:1,
-			page_size:10,
-			number:10, //展示卡片数量，同时设置animationData对象
+			page_size:3,
+			number:3, //展示卡片数量，同时设置animationData对象
 			moveRotate:{ x:0,y:0 }, //设置位移图片旋转角度距离  card中心点 - 指向坐标
 			delMoveD: uni.getSystemInfoSync().screenHeight,//设置删除移动距离
 			touchMoveD: 100,//设置card移动距离,   card移动距离/touchMoveD = 其他card变化比率
@@ -218,20 +218,20 @@ export default {
 					this.animationData[i] = this.moveAnimation.export()
 				}
 				// 展示下一个单词
-				var pageIdx = this.nextCard(this.moveX,this.moveY)
-				// this.moveX = 0
-				// this.moveY = 0
-				// this.dataList[0].moveX = 0
-				// this.dataList[0].moveY = 0
-				// this.dataList.splice(0,1)
+				this.moveX = 0
+				this.moveY = 0
+				this.dataList[0].moveX = 0
+				this.dataList[0].moveY = 0
+				this.dataList.splice(0,1)
+				this.nextCard(this.moveX,this.moveY)
 			
-				console.log("_del---------------",this.dataList.length,pageIdx)
-				// if(pageIdx+1 == this.page_size*this.page) {
-					
-				// 	this.page++
-				// 	console.log("load new words",this.page);
-				// 	this.getData(this.page,this.page_size)
-				// }
+			
+				console.log("_del==datalistlent,pageidx---------------",this.dataList.length)
+				if(this.dataList.length==1) {
+					this.page++
+					console.log("load new words",this.page);
+					this.getData(this.page,this.page_size)
+				}
 				if(this.type) {
 					//#ifdef APP-PLUS
 					this.delFlag = false
