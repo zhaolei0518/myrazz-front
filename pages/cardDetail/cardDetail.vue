@@ -1,32 +1,64 @@
 <template>
 	<view class="page" :style="{ height: `${sysHeight}px`, width: `${sysWidth}px` }">
-		<view class="titleView" :style="{ bottom: `${40}px` }">
-			{{pageIndex+1}}/{{totalWord}}
-		</view>
-		<view
-			v-for="(item, index) in dataList"
-			class="move-view"
-			:key="item._id"
-			@touchend="touchend"
-			@tap="tapCard(item)"
-			@touchmove="touchMove"
-			@touchstart="touchStart"
-			:animation="animationData[index]"
-			:style="{
-				transform:
-					index < number
-						? `rotate(${rotate * index}deg) scale(${1 - (1 - scale.x) * index},${1 - (1 - scale.y) * index}) skew(${skew.x * index}deg, ${skew.y *
-								index}deg) translate(${translate.x * index}px, ${translate.y * index}px)`
-						: `rotate(${rotate * (number - 1)}deg) scale(${1 - (1 - scale.x) * (number - 1)},${1 - (1 - scale.y) * (number - 1)}) skew(${skew.x *
-								(number - 1)}deg, ${skew.y * (number - 1)}deg) translate(${translate.x * (number - 1)}px, ${translate.y * (number - 1)}px)`,
-				zIndex: `${99999 - item._id}`,
-				opacity: index < number ? `${1 - (1 - opacity) * index}` : `${1 - (1 - opacity) * (number - 1)}`
-			}"
-		>
-			<view class="cardBox"><card-box :thumbnail="`${apiHost}api/files/${item.collectionId}/${item.id}/${item.thumbnail}`" :bgColor="item.bgColor"  :en="item.en" :zh="item.zh" :phonetic="item.phonetic" ref="cardBox"></card-box></view>
-	
+		<view class="titleView" :style="{ bottom: `${100}px` }">
+			{{currentIndex+1}}/{{totalWord}}
 		</view>
 		
+		<view
+			v-for="(item, index) in visibleCards"
+			class="move-view"
+			:key="index"
+			@touchend="touchend"
+			@tap.stop="tapCard(item)"
+			@touchmove="touchMove"
+			@touchstart="touchStart"
+			:style="{
+				transform: index === 0 ? 'none' : `translateY(${index * 10}px) scale(${1 - index * 0.05})`,
+				zIndex: `${9999 - index}`,
+				opacity: index < 3 ? `${1 - index * 0.1}` : '0.7'
+			}"
+		>
+			<view class="cardBox">
+				<card-box 
+					:thumbnail="item && item.thumbnail ? `${apiHost}api/files/${item.collectionId}/${item.id}/${item.thumbnail}` : ''" 
+					:bgColor="item ? item.bgColor : ''" 
+					:en="item ? item.en : ''" 
+					:zh="item ? item.zh : ''" 
+					:phonetic="item ? item.phonetic : ''" 
+					ref="cardBox">
+				</card-box>
+			</view>
+		</view>
+
+		<!-- 底部操作按钮 -->
+		<view class="action-buttons">
+			<!-- 左箭头按钮 -->
+			<view class="action-btn-wrapper" @tap.stop="swipeRight">
+				<view class="action-btn">
+					<image src="/static/icons/left.png" mode="aspectFit"></image>
+				</view>
+			</view>
+			
+			<!-- 播放按钮 -->
+			<view class="action-btn-wrapper" @tap.stop="playSound">
+				<view class="action-btn">
+					<image src="/static/icons/play.png" mode="aspectFit"></image>
+				</view>
+			</view>
+			
+			<!-- 收藏按钮 -->
+			<view class="action-btn-wrapper" @tap.stop="toggleFavorite">
+				<view class="action-btn">
+					<image :src="isFavorite ? '/static/icons/like_active.png' : '/static/icons/like.png'" mode="aspectFit"></image>
+				</view>
+			</view>
+			
+			<!-- 右箭头按钮 -->
+			<view class="action-btn-wrapper" @tap.stop="swipeLeft">
+				<view class="action-btn">
+					<image src="/static/icons/right.png" mode="aspectFit"></image>
+				</view>
+			</view>
 		</view>
 	</view>
 </template>
@@ -35,10 +67,6 @@
 import wordbiz from '@/components/wordbiz/wordbiz.js';
 import cardBox from './card-box';
 
-
-// 在页面中定义插屏广告
-let interstitialAd = null
-
 export default {
 	mixins: [wordbiz],
 	components: { cardBox },
@@ -46,231 +74,327 @@ export default {
 		return {
 			words:[],
 			cat:"",
-			currentShowWordInfo:null,
-			pageIndex:0,
-			totalWord:0,
-			bgViewColors : [
-				'#198AFA',
-				'#E86280',
-				'#6F7EA8',
-				'#327560',
-				'#6F8FAB',
-				'#768D9C',
-				'#9599A1',
-				'#F4B78C',
-				'#F5AD44',
-				'#2496D9',
-				'#758640',
-				'#CD3C4A',
-				'#278F74',
-				'#6E6E71',
-				'#3E9DD6',
-				'#E66466',
-				'#D5B383'
-			],
-			dataGroup:[],
-			originWords:[],
-			apiHost:'http://www.word.heluobo.top/'
+			currentIndex: 0, // 当前显示的卡片索引
+			totalWord: 0,
+			allCards: [], // 存储所有获取到的卡片
+			currentPage: 1, // 当前页码
+			pageSize: 10, // 每页数量
+			isLoading: false, // 是否正在加载数据
+			sysHeight: 0,
+			sysWidth: 0,
+			apiHost:'http://www.word.heluobo.top/',
+			startX: 0,
+			startY: 0,
+			isFavorite: false
 		};
 	},
+	computed: {
+		// 当前要显示的卡片（当前卡片及后面的几张）
+		visibleCards() {
+			// 确保allCards已加载并且不为空
+			if (!this.allCards || this.allCards.length === 0) {
+				return [];
+			}
+			return this.allCards.slice(this.currentIndex, this.currentIndex + 5);
+		},
+		// 当前显示的卡片信息
+		currentShowWordInfo() {
+			return this.allCards[this.currentIndex] || null;
+		}
+	},
 	onLoad(options) {
-		console.log(options)
 		uni.setNavigationBarTitle({
 			title:options.title
 		})
 		this.cat = options.cat;
-		console.log("onload---------------------------",options)
 		
-	},
-	mounted() {
-	
-	},
-	methods: {
-		//获取数据
-		async getData(page,page_size) {
-			
-			const wordlist = await this.getWordsByCat(this.cat,page,page_size)
-			console.log("getData-------",this.cat,wordlist)
-			var that = this
-			let promise = new Promise((resolve, reject) => {
-				console.log("getData",wordlist)
-				
-				that.dataList = that.dataList.concat(wordlist.items);
-				// that.dataList = wordlist.items
-				that.totalWord = wordlist.totalItems;
-				if(page == 1){
-					this.currentShowWordInfo = that.dataList[0]
-					
-					this.ScanAudio(`${this.apiHost}api/files/${this.currentShowWordInfo.collectionId}/${this.currentShowWordInfo.id}/${this.currentShowWordInfo.voice}`);			
-					
-					
-				}
-				resolve();
-			});
-			return promise;
-		},
-		async getWordsByCat(cat,page,page_size){
+		const sysInfo = uni.getSystemInfoSync();
+		this.sysHeight = sysInfo.windowHeight;
+		this.sysWidth = sysInfo.windowWidth;
 		
-			console.log("getWordsByCat from api", page, page_size)
-		
-			var result = await uni.request({
-			        url: this.apiHost + 'api/collections/word/records',
-			        method: 'GET',
-			        data: {
-			            page : page,
-			            perPage : page_size,
-			            filter : `cat="${cat}"`,
-			        }
-			    });
-		// 当请求成功时，result.data将包含API返回的数据
-			if (result.statusCode === 200) {
-			  const data = result.data;
-			  // 在这里处理返回的数据
-			  console.log('请求成功，返回的数据是：', data);
-				return data;
-			
-			} else {
-			  // 处理错误情况，例如请求失败或服务器返回了非200状态码
-			  console.error('请求失败，状态码：', result.statusCode);
-			}
-			return   
-		},
-		tapLove() {
-			if (this.dataList.length == 0) return;
-			this.moveX = 10; //设置角度y为0水平
-			this.moveY = 1;
-			this._del();
-		},
-		tapLoathe() {
-			if (this.dataList.length == 0) return;
-			this.moveX = -10; //设置角度
-			this.moveY = 1;
-			this._del();
-		},
-		//设置初始参数
-		init() {
-			this.number = 0; //card 3
-			this.translate = { x: 0, y: 8 }; //y下移10px
-			this.scale = { x: 0.95, y: 1 }; //x 缩小0.9
-			this.type = true;
-
-			this.moveRotate = {
-				//设置位移图片旋转角度距离  card中心点 - 指向坐标
-				x: 0,
-				y: uni.getSystemInfoSync().screenHeight
-			};
-		},
-		
-		//触摸中判断
-		moveJudge(x, y, ratio) {
-			let el = this.$refs.cardBox[0];
-
-			if (x > 20) {
-				el.moveRight(ratio);
-			} else if (x < -20) {
-				el.moveLeft(ratio);
-			} else {
-				el.moveCenter();
-			}
-		},
-		//触摸结束判断
-		endJudge(x, y) {
-			let el = this.$refs.cardBox[0];
-			if (Math.abs(x) < 40) {
-				this._back();
-				el._back();
-			} else {
-				this._del();
-				el.clearAnimation();
-			}
-		},
-		//展示下一个单词
-		nextCard(x, y) {
-			console.log("nextCard----------",this.dataList.length)	
-			if(this.pageIndex == this.totalWord){
-				this.ScanAudio('/static/voice/sound_unbelievable.mp3');
-				var that = this
-				uni.showModal({
-			          content: '已经学完，是否再来一遍？',
-			          showCancel: true,
-			          buttonText: '确定',
-			          success: (res) => {
-			            if (res.confirm) {
-						that.pageIndex = 1
-			              console.log('用户点击确定');
-						  
-						  // that.dataGroup = JSON.parse(decodeURIComponent(that.originWords));
-						  that.dataGroup = that.originWords;
-						  console.log(that.originWords)
-						  console.log(that.dataGroup)
-						  that.currentShowWordInfo = that.dataGroup[0]
-						  that.ScanAudio(that.currentShowWordInfo.voice);
-						  that.getData()
-						  
-			            } else if (res.cancel) {
-			              console.log('用户点击取消');
-						  uni.navigateBack({
-						  	
-						  })
-			            }
-			          }
-			        })
-			}else{
-				this.pageIndex += 1
-			}
-			
-			this.currentShowWordInfo = this.dataList[0]
-			console.log("next-word=currentShowWordInfo",this.currentShowWordInfo.zh);
-			this.ScanAudio(`${this.apiHost}api/files/${this.currentShowWordInfo.collectionId}/${this.currentShowWordInfo.id}/${this.currentShowWordInfo.voice}`);			
-			return
-		},
-		tapCard(item) {
-			console.log(item, '点击');
-			
-			this.ScanAudio(`${this.apiHost}api/files/${item.collectionId}/${item.id}/${item.voice_slow}`);			
+		// 检查是否有收藏的单词列表
+		try {
+			this.favoriteWords = uni.getStorageSync('favoriteWords') || [];
+		} catch (e) {
+			console.error('获取收藏列表失败:', e);
+			this.favoriteWords = [];
 		}
 		
+		// 加载第一页数据
+		this.loadData();
+	},
+	methods: {
+		// 加载数据
+		async loadData() {
+			if (this.isLoading) return;
+			
+			this.isLoading = true;
+			const wordlist = await this.getWordsByCat(this.cat, this.currentPage, this.pageSize);
+			this.isLoading = false;
+			
+			if (wordlist.items && wordlist.items.length > 0) {
+				// 将获取到的卡片添加到allCards数组
+				this.allCards = this.allCards.concat(wordlist.items);
+				this.totalWord = wordlist.totalItems;
+				
+				// 如果是第一页，播放第一张卡片的语音
+				if (this.currentPage === 1 && this.currentIndex === 0) {
+					// 检查当前单词是否在收藏列表中
+					this.updateFavoriteStatus();
+					this.playCurrentCardSound();
+				}
+				
+				// 更新当前页码
+				this.currentPage++;
+			} else if (this.currentPage === 1) {
+				// 第一页没有数据时显示提示
+				uni.showToast({
+					title: '该分类暂无单词数据',
+					icon: 'none',
+					duration: 2000
+				});
+			}
+		},
+		
+		// 检查是否需要加载更多数据
+		checkNeedLoadMore() {
+			// 如果当前索引接近末尾，并且还有更多数据可以加载，则加载下一页
+			if (this.currentIndex >= this.allCards.length - 3 && this.allCards.length < this.totalWord) {
+				this.loadData();
+			}
+		},
+		async getWordsByCat(cat,page,page_size){
+			try {
+				var result = await uni.request({
+					url: this.apiHost + 'api/collections/word/records',
+					method: 'GET',
+					data: {
+						page : page,
+						perPage : page_size,
+						filter : `cat="${cat}"`,
+					}
+				});
+				if (result.statusCode === 200) {
+					return result.data;
+				} else {
+					console.error('获取单词数据失败:', result);
+					uni.showToast({
+						title: '获取单词数据失败',
+						icon: 'none'
+					});
+					return {items: [], totalItems: 0};
+				}
+			} catch (error) {
+				console.error('请求单词数据异常:', error);
+				uni.showToast({
+					title: '网络错误，请重试',
+					icon: 'none'
+				});
+				return {items: [], totalItems: 0};
+			}
+		},
+		// 播放当前卡片的声音
+		playCurrentCardSound() {
+			if (this.currentShowWordInfo && this.currentShowWordInfo.voice && 
+				this.currentShowWordInfo.collectionId && this.currentShowWordInfo.id) {
+				this.ScanAudio(`${this.apiHost}api/files/${this.currentShowWordInfo.collectionId}/${this.currentShowWordInfo.id}/${this.currentShowWordInfo.voice}`);
+			} else if (this.currentShowWordInfo) {
+				console.warn('无法播放声音：当前卡片数据不完整', this.currentShowWordInfo);
+			}
+		},
+		
+		// 更新收藏状态
+		updateFavoriteStatus() {
+			this.isFavorite = this.favoriteWords && this.currentShowWordInfo && 
+				this.favoriteWords.includes(this.currentShowWordInfo.id);
+		},
+		
+		// 向左滑动 - 显示下一张卡片
+		swipeLeft() {
+			if (this.$refs.cardBox && this.$refs.cardBox[0]) {
+				this.$refs.cardBox[0].moveLeft(1);
+				this.showNextCard();
+			}
+		},
+		
+		playSound() {
+			this.playCurrentCardSound();
+		},
+		toggleFavorite() {
+			// 切换收藏状态
+			this.isFavorite = !this.isFavorite;
+			
+			// 如果当前有单词信息
+			if (this.currentShowWordInfo) {
+				// 这里可以添加保存收藏状态的逻辑，例如保存到本地存储
+				try {
+					// 获取已收藏单词列表
+					let favoriteWords = uni.getStorageSync('favoriteWords') || [];
+					
+					if (this.isFavorite) {
+						// 添加到收藏
+						favoriteWords.push(this.currentShowWordInfo.id);
+						uni.showToast({
+							title: '已添加到收藏',
+							icon: 'success',
+							duration: 1500
+						});
+					} else {
+						// 从收藏中移除
+						favoriteWords = favoriteWords.filter(id => id !== this.currentShowWordInfo.id);
+						uni.showToast({
+							title: '已取消收藏',
+							icon: 'none',
+							duration: 1500
+						});
+					}
+					
+					// 保存更新后的收藏列表
+					uni.setStorageSync('favoriteWords', favoriteWords);
+				} catch (e) {
+					console.error('保存收藏状态失败:', e);
+				}
+			}
+		},
+		// 向右滑动 - 显示上一张卡片
+		swipeRight() {
+			if (this.allCards.length > 0 && this.$refs.cardBox && this.$refs.cardBox[0]) {
+				this.$refs.cardBox[0].moveRight(1);
+				this.showPrevCard();
+			}
+		},
+		// 显示下一张卡片
+		showNextCard() {
+			// 检查是否已经到最后一张
+			if (this.currentIndex >= this.totalWord - 1) {
+				this.ScanAudio('/static/voice/sound_unbelievable.mp3');
+				uni.showModal({
+					content: '已经学完，是否再来一遍？',
+					showCancel: true,
+					success: (res) => {
+						if (res.confirm) {
+							// 重置索引和数据
+							this.currentIndex = 0;
+							this.allCards = [];
+							this.currentPage = 1;
+							this.loadData();
+						}
+					}
+				});
+				return;
+			}
+			
+			// 更新当前索引
+			this.currentIndex++;
+			
+			// 检查是否需要加载更多数据
+			this.checkNeedLoadMore();
+			
+			// 更新收藏状态
+			this.updateFavoriteStatus();
+			
+			// 播放声音
+			this.playCurrentCardSound();
+		},
+		tapCard(item) {
+			// 添加检查确保item及其必要属性存在
+			if (item && item.collectionId && item.id && item.voice_slow) {
+				this.ScanAudio(`${this.apiHost}api/files/${item.collectionId}/${item.id}/${item.voice_slow}`);
+			} else {
+				console.warn('无法播放声音：卡片数据不完整', item);
+			}
+		},
+		
+		// 触摸开始
+		touchStart(e) {
+			this.startX = e.touches[0].clientX;
+			this.startY = e.touches[0].clientY;
+		},
+		
+		// 触摸移动
+		touchMove(e) {
+			if (this.allCards.length == 0 || !this.$refs.cardBox || !this.$refs.cardBox[0]) return;
+			
+			let moveX = e.touches[0].clientX - this.startX;
+			let moveY = e.touches[0].clientY - this.startY;
+			
+			// 计算移动比例
+			let ratio = Math.abs(moveX) / 100;
+			if (ratio > 1) ratio = 1;
+			
+			// 判断移动方向
+			if (moveX > 20) {
+				this.$refs.cardBox[0].moveRight(ratio);
+			} else if (moveX < -20) {
+				this.$refs.cardBox[0].moveLeft(ratio);
+			} else {
+				this.$refs.cardBox[0].moveCenter();
+			}
+		},
+		
+		// 显示上一张卡片
+		showPrevCard() {
+			// 检查是否已经是第一张
+			if (this.currentIndex <= 0) {
+				uni.showToast({
+					title: '已经是第一张卡片',
+					icon: 'none',
+					duration: 1500
+				});
+				return;
+			}
+			
+			// 更新当前索引
+			this.currentIndex--;
+			
+			// 更新收藏状态
+			this.updateFavoriteStatus();
+			
+			// 播放声音
+			this.playCurrentCardSound();
+		},
+		
+		// 触摸结束
+		touchend(e) {
+			if (this.allCards.length == 0 || !this.$refs.cardBox || !this.$refs.cardBox[0]) return;
+			
+			let moveX = e.changedTouches[0].clientX - this.startX;
+			let moveY = e.changedTouches[0].clientY - this.startY;
+			
+			// 判断结束动作
+			if (Math.abs(moveX) < 40) {
+				// 移动距离太小，恢复原位
+				this.$refs.cardBox[0]._back();
+			} else if (moveX > 0) {
+				// 右滑，显示上一张
+				this.$refs.cardBox[0].clearAnimation();
+				this.showPrevCard();
+			} else {
+				// 左滑，显示下一张
+				this.$refs.cardBox[0].clearAnimation();
+				this.showNextCard();
+			}
+		}
 	}
 };
 </script>
 
 <style lang="scss" scoped>
-@font-face {
-	font-family: 'iconfont';
-	src: url('data:application/x-font-woff2;charset=utf-8;base64,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')
-		format('woff2');
+.page {
+	width: 100%;
+	position: absolute;
+	display: flex;
+	align-items: center;
+	justify-content: center;
 }
 
 .titleView {
 	position: absolute;
 	width: 100%;
 	text-align: center;
-	z-index: 9999999999999;
+	z-index: 999;
 }
-.iconfont {
-	font-family: 'iconfont' !important;
-	font-size: 12px;
-	font-style: normal;
-	-webkit-font-smoothing: antialiased;
-	-moz-osx-font-smoothing: grayscale;
-}
-.icon-xinaixin:before {
-	content: '\e601';
-}
-.icon-chacha1:before {
-	content: '\e646';
-}
-.page {
-	width: 100%;
-	position: absolute;
-	overflow: hidden;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-}
-.move-area {
-	position: absolute;
-}
+
 .move-view {
 	width: 600rpx;
 	position: absolute;
@@ -279,22 +403,63 @@ export default {
 	top: 50%;
 	margin-left: -300rpx;
 	margin-top: -600rpx;
+	transition: all 0.3s ease;
 }
+
 .cardBox {
 	position: relative;
 	width: 600rpx;
 	height: 1000rpx;
 }
-.actionBtnBgView {
 
-	    display: flex;
-	    flex-direction: row;
-		z-index: 9999;
-		justify-content: space-around;
-	.actionImg {
-		width: 40%;
-		    height: 100%;
+.action-buttons {
+	position: fixed;
+	bottom: 40px;
+	width: 100%;
+	display: flex;
+	justify-content: space-around;
+	padding: 0 20px;
+	z-index: 99;
+}
+
+.action-btn-wrapper {
+	/* 确保包装器有足够大的点击区域 */
+	padding: 10px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	z-index: 200;
+}
+
+.action-btn {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	background: rgba(255, 255, 255, 0.95);
+	border-radius: 40px;
+	width: 80px;
+	height: 80px;
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+	border: none;
+	transition: all 0.2s ease;
+	-webkit-font-smoothing: antialiased;
+	-moz-osx-font-smoothing: grayscale;
+	transform: translateZ(0);
+	backface-visibility: hidden;
+	position: relative;
+	cursor: pointer;
+	
+	image, svg {
+		width: 36px;
+		height: 36px;
+		pointer-events: none;
 	}
 }
 
+.action-btn-wrapper:active .action-btn {
+	background: rgba(245, 245, 245, 0.95);
+	transform: translateZ(0) scale(0.92);
+	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
 </style>

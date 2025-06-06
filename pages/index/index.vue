@@ -62,31 +62,51 @@
 						"isLock":true,
 						"item_color":"rgb(19, 123, 126)"
 					}
-				]
+				],
+				tapIndex: -1,
+				animation: ''
 			}
-			},
-			methods:{
+		},
+		methods:{
 				sidebarClick:function(cat){
 					console.log(cat);
-					uni.navigateTo({
-						url:`/pages/cardDetail/cardDetail?cat=${cat}&title=${cat}`,
-						// success: function(res) {
-						//     // 通过eventChannel向被打开页面传送数据
-						// 	let data= {
-						// 	"title":"titlexx",
-						// 	"words":[{
-						// 		"_id": "60053e29503e481e95211404",
-						// 		"enWord": "squirrel",
-						// 		"enVoiceURL": "https://mp-e8fb124d-4949-40ed-9db8-fb30109550f4.cdn.bspapp.com/shizika/60053e29503e481e95211404.mp3",
-						// 		"enPhonetic": "[ˈskwɜːrəl]",
-						// 		"zhWord": "松鼠",
-						// 		"type": 0,
-						// 		"imgURL": "https://mp-e8fb124d-4949-40ed-9db8-fb30109550f4.cdn.bspapp.com/shizika/60053e29503e481e95211404.png"
-						// 	}]
-						// }
-						//     res.eventChannel.emit('acceptDataFromOpenerPage', { data: data })
-						//   }
+					
+					// 查找点击的卡片
+					const item = this.items.find(item => item.cat === cat);
+					
+					// 如果卡片被锁定，显示提示信息
+					if (item && item.isLock) {
+						uni.showToast({
+							title: '该级别尚未解锁',
+							icon: 'none',
+							duration: 2000
+						});
 						
+						// 添加动画效果
+						const index = this.items.findIndex(i => i.cat === cat);
+						this.tapIndex = index;
+						this.animation = 'shake';
+						
+						setTimeout(() => {
+							this.animation = '';
+							this.tapIndex = -1;
+						}, 800);
+						
+						return;
+					}
+					
+					// 如果卡片未锁定，则导航到卡片详情页
+					uni.navigateTo({
+						url:`/pages/cardDetail/cardDetail?cat=${cat}&title=${cat}`
+					});
+				},
+				
+				// 左侧按钮点击事件
+				leftBtnClick() {
+					uni.showToast({
+						title: '功能开发中',
+						icon: 'none',
+						duration: 2000
 					});
 				}
 			}

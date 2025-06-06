@@ -1,5 +1,13 @@
 <template>
 	<view  @tap="tapCard()"  class="cardBox" :style="{ backgroundColor: `${bgColor}` }">
+		<!-- 喜欢和不喜欢的动画指示器 -->
+		<view class="love-animation" :animation="loveAnimation[0]">
+			<text class="animation-text">👍</text>
+		</view>
+		<view class="loathe-animation" :animation="loatheAnimation[0]">
+			<text class="animation-text">👎</text>
+		</view>
+		
 		<view class="top" ><image :class="'item-' + animation" class="img" :src="thumbnail" mode="widthFix"></image></view>
 		<view class="bottom">
 			<view class="bottomItem">{{ phonetic }}</view>
@@ -153,6 +161,33 @@ export default {
 		}
 	}
 }
+.love-animation, .loathe-animation {
+	position: absolute;
+	top: 50%;
+	width: 120rpx;
+	height: 120rpx;
+	border-radius: 60rpx;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	opacity: 0;
+	z-index: 9999;
+}
+
+.love-animation {
+	right: 20rpx;
+	background-color: rgba(76, 175, 80, 0.7);
+}
+
+.loathe-animation {
+	left: 20rpx;
+	background-color: rgba(244, 67, 54, 0.7);
+}
+
+.animation-text {
+	font-size: 60rpx;
+}
+
 .item-shake {
 	animation: shake 0.8s !important;
 }

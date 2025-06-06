@@ -178,13 +178,43 @@ var _wordbiz = _interopRequireDefault(__webpack_require__(/*! @/components/wordb
 //
 //
 //
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
 var cardBox = function cardBox() {
   __webpack_require__.e(/*! require.ensure | pages/cardDetail/card-box */ "pages/cardDetail/card-box").then((function () {
     return resolve(__webpack_require__(/*! ./card-box */ 76));
   }).bind(null, __webpack_require__)).catch(__webpack_require__.oe);
 };
-// 在页面中定义插屏广告
-var interstitialAd = null;
 var _default = {
   mixins: [_wordbiz.default],
   components: {
@@ -194,53 +224,104 @@ var _default = {
     return {
       words: [],
       cat: "",
-      currentShowWordInfo: null,
-      pageIndex: 0,
+      currentIndex: 0,
+      // 当前显示的卡片索引
       totalWord: 0,
-      bgViewColors: ['#198AFA', '#E86280', '#6F7EA8', '#327560', '#6F8FAB', '#768D9C', '#9599A1', '#F4B78C', '#F5AD44', '#2496D9', '#758640', '#CD3C4A', '#278F74', '#6E6E71', '#3E9DD6', '#E66466', '#D5B383'],
-      dataGroup: [],
-      originWords: [],
-      apiHost: 'http://www.word.heluobo.top/'
+      allCards: [],
+      // 存储所有获取到的卡片
+      currentPage: 1,
+      // 当前页码
+      pageSize: 10,
+      // 每页数量
+      isLoading: false,
+      // 是否正在加载数据
+      sysHeight: 0,
+      sysWidth: 0,
+      apiHost: 'http://www.word.heluobo.top/',
+      startX: 0,
+      startY: 0,
+      isFavorite: false
     };
   },
+  computed: {
+    // 当前要显示的卡片（当前卡片及后面的几张）
+    visibleCards: function visibleCards() {
+      // 确保allCards已加载并且不为空
+      if (!this.allCards || this.allCards.length === 0) {
+        return [];
+      }
+      return this.allCards.slice(this.currentIndex, this.currentIndex + 5);
+    },
+    // 当前显示的卡片信息
+    currentShowWordInfo: function currentShowWordInfo() {
+      return this.allCards[this.currentIndex] || null;
+    }
+  },
   onLoad: function onLoad(options) {
-    console.log(options);
     uni.setNavigationBarTitle({
       title: options.title
     });
     this.cat = options.cat;
-    console.log("onload---------------------------", options);
+    var sysInfo = uni.getSystemInfoSync();
+    this.sysHeight = sysInfo.windowHeight;
+    this.sysWidth = sysInfo.windowWidth;
+
+    // 检查是否有收藏的单词列表
+    try {
+      this.favoriteWords = uni.getStorageSync('favoriteWords') || [];
+    } catch (e) {
+      console.error('获取收藏列表失败:', e);
+      this.favoriteWords = [];
+    }
+
+    // 加载第一页数据
+    this.loadData();
   },
-  mounted: function mounted() {},
   methods: {
-    //获取数据
-    getData: function getData(page, page_size) {
+    // 加载数据
+    loadData: function loadData() {
       var _this = this;
       return (0, _asyncToGenerator2.default)( /*#__PURE__*/_regenerator.default.mark(function _callee() {
-        var wordlist, that, promise;
+        var wordlist;
         return _regenerator.default.wrap(function _callee$(_context) {
           while (1) {
             switch (_context.prev = _context.next) {
               case 0:
-                _context.next = 2;
-                return _this.getWordsByCat(_this.cat, page, page_size);
+                if (!_this.isLoading) {
+                  _context.next = 2;
+                  break;
+                }
+                return _context.abrupt("return");
               case 2:
+                _this.isLoading = true;
+                _context.next = 5;
+                return _this.getWordsByCat(_this.cat, _this.currentPage, _this.pageSize);
+              case 5:
                 wordlist = _context.sent;
-                console.log("getData-------", _this.cat, wordlist);
-                that = _this;
-                promise = new Promise(function (resolve, reject) {
-                  console.log("getData", wordlist);
-                  that.dataList = that.dataList.concat(wordlist.items);
-                  // that.dataList = wordlist.items
-                  that.totalWord = wordlist.totalItems;
-                  if (page == 1) {
-                    _this.currentShowWordInfo = that.dataList[0];
-                    _this.ScanAudio("".concat(_this.apiHost, "api/files/").concat(_this.currentShowWordInfo.collectionId, "/").concat(_this.currentShowWordInfo.id, "/").concat(_this.currentShowWordInfo.voice));
+                _this.isLoading = false;
+                if (wordlist.items && wordlist.items.length > 0) {
+                  // 将获取到的卡片添加到allCards数组
+                  _this.allCards = _this.allCards.concat(wordlist.items);
+                  _this.totalWord = wordlist.totalItems;
+
+                  // 如果是第一页，播放第一张卡片的语音
+                  if (_this.currentPage === 1 && _this.currentIndex === 0) {
+                    // 检查当前单词是否在收藏列表中
+                    _this.updateFavoriteStatus();
+                    _this.playCurrentCardSound();
                   }
-                  resolve();
-                });
-                return _context.abrupt("return", promise);
-              case 7:
+
+                  // 更新当前页码
+                  _this.currentPage++;
+                } else if (_this.currentPage === 1) {
+                  // 第一页没有数据时显示提示
+                  uni.showToast({
+                    title: '该分类暂无单词数据',
+                    icon: 'none',
+                    duration: 2000
+                  });
+                }
+              case 8:
               case "end":
                 return _context.stop();
             }
@@ -248,15 +329,22 @@ var _default = {
         }, _callee);
       }))();
     },
+    // 检查是否需要加载更多数据
+    checkNeedLoadMore: function checkNeedLoadMore() {
+      // 如果当前索引接近末尾，并且还有更多数据可以加载，则加载下一页
+      if (this.currentIndex >= this.allCards.length - 3 && this.allCards.length < this.totalWord) {
+        this.loadData();
+      }
+    },
     getWordsByCat: function getWordsByCat(cat, page, page_size) {
       var _this2 = this;
       return (0, _asyncToGenerator2.default)( /*#__PURE__*/_regenerator.default.mark(function _callee2() {
-        var result, data;
+        var result;
         return _regenerator.default.wrap(function _callee2$(_context2) {
           while (1) {
             switch (_context2.prev = _context2.next) {
               case 0:
-                console.log("getWordsByCat from api", page, page_size);
+                _context2.prev = 0;
                 _context2.next = 3;
                 return uni.request({
                   url: _this2.apiHost + 'api/collections/word/records',
@@ -270,116 +358,216 @@ var _default = {
               case 3:
                 result = _context2.sent;
                 if (!(result.statusCode === 200)) {
-                  _context2.next = 10;
+                  _context2.next = 8;
                   break;
                 }
-                data = result.data; // 在这里处理返回的数据
-                console.log('请求成功，返回的数据是：', data);
-                return _context2.abrupt("return", data);
-              case 10:
-                // 处理错误情况，例如请求失败或服务器返回了非200状态码
-                console.error('请求失败，状态码：', result.statusCode);
+                return _context2.abrupt("return", result.data);
+              case 8:
+                console.error('获取单词数据失败:', result);
+                uni.showToast({
+                  title: '获取单词数据失败',
+                  icon: 'none'
+                });
+                return _context2.abrupt("return", {
+                  items: [],
+                  totalItems: 0
+                });
               case 11:
-                return _context2.abrupt("return");
-              case 12:
+                _context2.next = 18;
+                break;
+              case 13:
+                _context2.prev = 13;
+                _context2.t0 = _context2["catch"](0);
+                console.error('请求单词数据异常:', _context2.t0);
+                uni.showToast({
+                  title: '网络错误，请重试',
+                  icon: 'none'
+                });
+                return _context2.abrupt("return", {
+                  items: [],
+                  totalItems: 0
+                });
+              case 18:
               case "end":
                 return _context2.stop();
             }
           }
-        }, _callee2);
+        }, _callee2, null, [[0, 13]]);
       }))();
     },
-    tapLove: function tapLove() {
-      if (this.dataList.length == 0) return;
-      this.moveX = 10; //设置角度y为0水平
-      this.moveY = 1;
-      this._del();
-    },
-    tapLoathe: function tapLoathe() {
-      if (this.dataList.length == 0) return;
-      this.moveX = -10; //设置角度
-      this.moveY = 1;
-      this._del();
-    },
-    //设置初始参数
-    init: function init() {
-      this.number = 0; //card 3
-      this.translate = {
-        x: 0,
-        y: 8
-      }; //y下移10px
-      this.scale = {
-        x: 0.95,
-        y: 1
-      }; //x 缩小0.9
-      this.type = true;
-      this.moveRotate = {
-        //设置位移图片旋转角度距离  card中心点 - 指向坐标
-        x: 0,
-        y: uni.getSystemInfoSync().screenHeight
-      };
-    },
-    //触摸中判断
-    moveJudge: function moveJudge(x, y, ratio) {
-      var el = this.$refs.cardBox[0];
-      if (x > 20) {
-        el.moveRight(ratio);
-      } else if (x < -20) {
-        el.moveLeft(ratio);
-      } else {
-        el.moveCenter();
+    // 播放当前卡片的声音
+    playCurrentCardSound: function playCurrentCardSound() {
+      if (this.currentShowWordInfo && this.currentShowWordInfo.voice && this.currentShowWordInfo.collectionId && this.currentShowWordInfo.id) {
+        this.ScanAudio("".concat(this.apiHost, "api/files/").concat(this.currentShowWordInfo.collectionId, "/").concat(this.currentShowWordInfo.id, "/").concat(this.currentShowWordInfo.voice));
+      } else if (this.currentShowWordInfo) {
+        console.warn('无法播放声音：当前卡片数据不完整', this.currentShowWordInfo);
       }
     },
-    //触摸结束判断
-    endJudge: function endJudge(x, y) {
-      var el = this.$refs.cardBox[0];
-      if (Math.abs(x) < 40) {
-        this._back();
-        el._back();
-      } else {
-        this._del();
-        el.clearAnimation();
+    // 更新收藏状态
+    updateFavoriteStatus: function updateFavoriteStatus() {
+      this.isFavorite = this.favoriteWords && this.currentShowWordInfo && this.favoriteWords.includes(this.currentShowWordInfo.id);
+    },
+    // 向左滑动 - 显示下一张卡片
+    swipeLeft: function swipeLeft() {
+      if (this.$refs.cardBox && this.$refs.cardBox[0]) {
+        this.$refs.cardBox[0].moveLeft(1);
+        this.showNextCard();
       }
     },
-    //展示下一个单词
-    nextCard: function nextCard(x, y) {
-      console.log("nextCard----------", this.dataList.length);
-      if (this.pageIndex == this.totalWord) {
+    playSound: function playSound() {
+      this.playCurrentCardSound();
+    },
+    toggleFavorite: function toggleFavorite() {
+      var _this3 = this;
+      // 切换收藏状态
+      this.isFavorite = !this.isFavorite;
+
+      // 如果当前有单词信息
+      if (this.currentShowWordInfo) {
+        // 这里可以添加保存收藏状态的逻辑，例如保存到本地存储
+        try {
+          // 获取已收藏单词列表
+          var favoriteWords = uni.getStorageSync('favoriteWords') || [];
+          if (this.isFavorite) {
+            // 添加到收藏
+            favoriteWords.push(this.currentShowWordInfo.id);
+            uni.showToast({
+              title: '已添加到收藏',
+              icon: 'success',
+              duration: 1500
+            });
+          } else {
+            // 从收藏中移除
+            favoriteWords = favoriteWords.filter(function (id) {
+              return id !== _this3.currentShowWordInfo.id;
+            });
+            uni.showToast({
+              title: '已取消收藏',
+              icon: 'none',
+              duration: 1500
+            });
+          }
+
+          // 保存更新后的收藏列表
+          uni.setStorageSync('favoriteWords', favoriteWords);
+        } catch (e) {
+          console.error('保存收藏状态失败:', e);
+        }
+      }
+    },
+    // 向右滑动 - 显示上一张卡片
+    swipeRight: function swipeRight() {
+      if (this.allCards.length > 0 && this.$refs.cardBox && this.$refs.cardBox[0]) {
+        this.$refs.cardBox[0].moveRight(1);
+        this.showPrevCard();
+      }
+    },
+    // 显示下一张卡片
+    showNextCard: function showNextCard() {
+      var _this4 = this;
+      // 检查是否已经到最后一张
+      if (this.currentIndex >= this.totalWord - 1) {
         this.ScanAudio('/static/voice/sound_unbelievable.mp3');
-        var that = this;
         uni.showModal({
           content: '已经学完，是否再来一遍？',
           showCancel: true,
-          buttonText: '确定',
           success: function success(res) {
             if (res.confirm) {
-              that.pageIndex = 1;
-              console.log('用户点击确定');
-
-              // that.dataGroup = JSON.parse(decodeURIComponent(that.originWords));
-              that.dataGroup = that.originWords;
-              console.log(that.originWords);
-              console.log(that.dataGroup);
-              that.currentShowWordInfo = that.dataGroup[0];
-              that.ScanAudio(that.currentShowWordInfo.voice);
-              that.getData();
-            } else if (res.cancel) {
-              console.log('用户点击取消');
-              uni.navigateBack({});
+              // 重置索引和数据
+              _this4.currentIndex = 0;
+              _this4.allCards = [];
+              _this4.currentPage = 1;
+              _this4.loadData();
             }
           }
         });
-      } else {
-        this.pageIndex += 1;
+        return;
       }
-      this.currentShowWordInfo = this.dataList[0];
-      console.log("next-word=currentShowWordInfo", this.currentShowWordInfo.zh);
-      this.ScanAudio("".concat(this.apiHost, "api/files/").concat(this.currentShowWordInfo.collectionId, "/").concat(this.currentShowWordInfo.id, "/").concat(this.currentShowWordInfo.voice));
-      return;
+
+      // 更新当前索引
+      this.currentIndex++;
+
+      // 检查是否需要加载更多数据
+      this.checkNeedLoadMore();
+
+      // 更新收藏状态
+      this.updateFavoriteStatus();
+
+      // 播放声音
+      this.playCurrentCardSound();
     },
     tapCard: function tapCard(item) {
-      console.log(item, '点击');
-      this.ScanAudio("".concat(this.apiHost, "api/files/").concat(item.collectionId, "/").concat(item.id, "/").concat(item.voice_slow));
+      // 添加检查确保item及其必要属性存在
+      if (item && item.collectionId && item.id && item.voice_slow) {
+        this.ScanAudio("".concat(this.apiHost, "api/files/").concat(item.collectionId, "/").concat(item.id, "/").concat(item.voice_slow));
+      } else {
+        console.warn('无法播放声音：卡片数据不完整', item);
+      }
+    },
+    // 触摸开始
+    touchStart: function touchStart(e) {
+      this.startX = e.touches[0].clientX;
+      this.startY = e.touches[0].clientY;
+    },
+    // 触摸移动
+    touchMove: function touchMove(e) {
+      if (this.allCards.length == 0 || !this.$refs.cardBox || !this.$refs.cardBox[0]) return;
+      var moveX = e.touches[0].clientX - this.startX;
+      var moveY = e.touches[0].clientY - this.startY;
+
+      // 计算移动比例
+      var ratio = Math.abs(moveX) / 100;
+      if (ratio > 1) ratio = 1;
+
+      // 判断移动方向
+      if (moveX > 20) {
+        this.$refs.cardBox[0].moveRight(ratio);
+      } else if (moveX < -20) {
+        this.$refs.cardBox[0].moveLeft(ratio);
+      } else {
+        this.$refs.cardBox[0].moveCenter();
+      }
+    },
+    // 显示上一张卡片
+    showPrevCard: function showPrevCard() {
+      // 检查是否已经是第一张
+      if (this.currentIndex <= 0) {
+        uni.showToast({
+          title: '已经是第一张卡片',
+          icon: 'none',
+          duration: 1500
+        });
+        return;
+      }
+
+      // 更新当前索引
+      this.currentIndex--;
+
+      // 更新收藏状态
+      this.updateFavoriteStatus();
+
+      // 播放声音
+      this.playCurrentCardSound();
+    },
+    // 触摸结束
+    touchend: function touchend(e) {
+      if (this.allCards.length == 0 || !this.$refs.cardBox || !this.$refs.cardBox[0]) return;
+      var moveX = e.changedTouches[0].clientX - this.startX;
+      var moveY = e.changedTouches[0].clientY - this.startY;
+
+      // 判断结束动作
+      if (Math.abs(moveX) < 40) {
+        // 移动距离太小，恢复原位
+        this.$refs.cardBox[0]._back();
+      } else if (moveX > 0) {
+        // 右滑，显示上一张
+        this.$refs.cardBox[0].clearAnimation();
+        this.showPrevCard();
+      } else {
+        // 左滑，显示下一张
+        this.$refs.cardBox[0].clearAnimation();
+        this.showNextCard();
+      }
     }
   }
 };
