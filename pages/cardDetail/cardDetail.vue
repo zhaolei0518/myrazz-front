@@ -20,7 +20,7 @@
 		>
 			<view class="cardBox">
 				<card-box 
-					:thumbnail="item && item.thumbnail ? `${apiHost}api/files/${item.collectionId}/${item.id}/${item.thumbnail}` : ''" 
+					:thumbnail="item && item.thumbnail ? `${apiHost}api/files/${item.collectionId}/${item.id}/${item.thumbnail}?thumb=0x512` : ''" 
 					:bgColor="item ? item.bgColor : ''" 
 					:en="item ? item.en : ''" 
 					:zh="item ? item.zh : ''" 
