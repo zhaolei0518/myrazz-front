@@ -3,7 +3,11 @@
 		<view class="login-section" v-if="!isLoggedIn">
 			<image class="avatar" src="/static/logo.png" mode="aspectFill"></image>
 			<view class="login-text">请登录</view>
-			<button class="login-btn" type="primary" @click="login">立即登录</button>
+			<button class="login-btn wechat-btn" open-type="getUserInfo" @getuserinfo="onGetUserInfo">
+				<image src="/static/common/ic_btn_cn~iphone.png" mode="aspectFit" class="wechat-icon"></image>
+				微信一键登录
+			</button>
+			<view class="login-tips">登录后可同步学习记录和收藏</view>
 		</view>
 		<view class="user-info" v-else>
 			<image class="avatar" :src="userInfo.avatarUrl || '/static/logo.png'" mode="aspectFill"></image>
@@ -40,6 +44,8 @@
 </template>
 
 <script>
+import api from '../../utils/api.js';
+
 export default {
 	data() {
 		return {
@@ -56,46 +62,120 @@ export default {
 	},
 	methods: {
 		checkLoginStatus() {
-			// 从本地存储获取用户信息
+			// 从本地存储获取token和用户信息
+			const token = uni.getStorageSync('token');
 			const userInfo = uni.getStorageSync('userInfo');
-			if (userInfo) {
+			
+			// 只有token和userInfo都存在才认为是已登录状态
+			if (token && userInfo) {
 				this.isLoggedIn = true;
 				this.userInfo = JSON.parse(userInfo);
+				
+				// 可以在这里添加token有效性验证逻辑
+				// 例如检查token是否过期，如果过期则清除登录状态
+				
+				console.log('用户已登录，token:', token);
+			} else {
+				// 如果token不存在但userInfo存在，清除userInfo
+				if (!token && userInfo) {
+					uni.removeStorageSync('userInfo');
+				}
+				
+				this.isLoggedIn = false;
+				console.log('用户未登录');
 			}
 		},
-		login() {
-			// 在实际应用中，这里应该调用微信登录API
-			uni.showModal({
-				title: '登录提示',
-				content: '此功能需要登录，是否前往登录？',
-				success: (res) => {
-					if (res.confirm) {
-						// 模拟登录过程
-						uni.showLoading({
-							title: '登录中...'
-						});
-						
-						setTimeout(() => {
-							// 模拟登录成功
-							const mockUserInfo = {
-								nickName: '测试用户',
-								avatarUrl: '/static/logo.png'
-							};
-							
-							// 保存用户信息
-							uni.setStorageSync('userInfo', JSON.stringify(mockUserInfo));
-							this.isLoggedIn = true;
-							this.userInfo = mockUserInfo;
-							
-							uni.hideLoading();
-							uni.showToast({
-								title: '登录成功',
-								icon: 'success'
+		onGetUserInfo(e) {
+			if (e.detail.errMsg === 'getUserInfo:ok') {
+				uni.showLoading({
+					title: '登录中...'
+				});
+				
+				// 1. 获取微信登录凭证code
+				uni.login({
+					provider: 'weixin',
+					success: (loginRes) => {
+						// 2. 调用实际API登录接口
+						api.login(loginRes.code, e.detail.userInfo)
+							.then(res => {
+								if (res.statusCode === 200 && res.data.code === 200) {
+									// 保存token和用户ID
+									uni.setStorageSync('token', res.data.data.token);
+									uni.setStorageSync('userId', res.data.data.userId);
+									
+									// 保存用户基本信息
+									const userInfo = {
+										nickName: e.detail.userInfo.nickName,
+										avatarUrl: e.detail.userInfo.avatarUrl
+									};
+									uni.setStorageSync('userInfo', JSON.stringify(userInfo));
+									
+									this.isLoggedIn = true;
+									this.userInfo = userInfo;
+									
+									// 获取更详细的用户信息
+									this.fetchUserDetails(res.data.data.userId);
+									
+									uni.hideLoading();
+									uni.showToast({
+										title: '登录成功',
+										icon: 'success'
+									});
+								} else {
+									uni.hideLoading();
+									uni.showToast({
+										title: res.data.message || '登录失败',
+										icon: 'none'
+									});
+								}
+							})
+							.catch(err => {
+								uni.hideLoading();
+								uni.showToast({
+									title: '网络请求失败',
+									icon: 'none'
+								});
+								console.error('API请求失败:', err);
 							});
-						}, 1500);
+					},
+					fail: (err) => {
+						uni.hideLoading();
+						uni.showToast({
+							title: '微信登录失败',
+							icon: 'none'
+						});
+						console.error('微信登录失败:', err);
 					}
-				}
-			});
+				});
+			} else {
+				uni.showToast({
+					title: '授权失败',
+					icon: 'none'
+				});
+			}
+		},
+		
+		// 获取用户详细信息
+		fetchUserDetails(userId) {
+			api.getUserInfo(userId)
+				.then(res => {
+					if (res.statusCode === 200) {
+						// 合并用户信息
+						const userDetails = res.data;
+						const userInfo = {
+							...this.userInfo,
+							level: userDetails.level || 1,
+							points: userDetails.points || 0
+						};
+						
+						// 更新本地存储和状态
+						uni.setStorageSync('userInfo', JSON.stringify(userInfo));
+						this.userInfo = userInfo;
+					}
+				})
+				.catch(err => {
+					console.error('获取用户详情失败:', err);
+				});
 		},
 		logout() {
 			uni.showModal({
@@ -103,8 +183,9 @@ export default {
 				content: '确定要退出登录吗？',
 				success: (res) => {
 					if (res.confirm) {
-						// 清除用户信息
+						// 清除用户信息和token
 						uni.removeStorageSync('userInfo');
+						uni.removeStorageSync('token');
 						this.isLoggedIn = false;
 						this.userInfo = {
 							nickName: '',
@@ -120,9 +201,16 @@ export default {
 			});
 		},
 		handleMenuItem(type) {
-			// 如果未登录，则提示登录
+			// 如果未登录，则提示需要登录
 			if (!this.isLoggedIn) {
-				this.login();
+				uni.showModal({
+					title: '提示',
+					content: '此功能需要登录后才能使用',
+					confirmText: '去登录',
+					success: (res) => {
+						// 用户点击确定，不需要做额外操作，因为界面上已经有登录按钮
+					}
+				});
 				return;
 			}
 			
@@ -191,6 +279,29 @@ export default {
 
 .login-btn {
 	width: 60%;
+	margin-top: 20rpx;
+}
+
+.wechat-btn {
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	justify-content: center;
+	background-color: #07c160;
+	border: none;
+	color: #ffffff;
+	font-size: 28rpx;
+}
+
+.wechat-icon {
+	width: 40rpx;
+	height: 40rpx;
+	margin-right: 10rpx;
+}
+
+.login-tips {
+	font-size: 24rpx;
+	color: #999;
 	margin-top: 20rpx;
 }
 

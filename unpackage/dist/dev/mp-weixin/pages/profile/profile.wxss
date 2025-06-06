@@ -54,6 +54,26 @@
   width: 60%;
   margin-top: 20rpx;
 }
+.wechat-btn {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  background-color: #07c160;
+  border: none;
+  color: #ffffff;
+  font-size: 28rpx;
+}
+.wechat-icon {
+  width: 40rpx;
+  height: 40rpx;
+  margin-right: 10rpx;
+}
+.login-tips {
+  font-size: 24rpx;
+  color: #999;
+  margin-top: 20rpx;
+}
 .user-info {
   display: flex;
   flex-direction: column;

@@ -10432,6 +10432,113 @@ var _default = (0, _defineProperty2.default)({
 exports.default = _default;
 /* WEBPACK VAR INJECTION */}.call(this, __webpack_require__(/*! ./node_modules/@dcloudio/uni-mp-weixin/dist/index.js */ 2)["default"]))
 
+/***/ }),
+/* 52 */,
+/* 53 */,
+/* 54 */,
+/* 55 */,
+/* 56 */,
+/* 57 */,
+/* 58 */,
+/* 59 */,
+/* 60 */
+/*!*************************************************************************************!*\
+  !*** /Users/zhaolei/Documents/zhaolei_project/HBuilderProjects/myrazz/utils/api.js ***!
+  \*************************************************************************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+/* WEBPACK VAR INJECTION */(function(uni) {
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.default = void 0;
+// API基础URL
+// const BASE_URL = 'http://localhost:8090'; // PocketBase默认运行在8090端口，根据实际情况修改
+var BASE_URL = 'http://www.word.heluobo.top'; // PocketBase默认运行在8090端口，根据实际情况修改
+
+// 通用请求函数
+var request = function request(url, method) {
+  var data = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : null;
+  return new Promise(function (resolve, reject) {
+    // 获取存储的token
+    var token = uni.getStorageSync('token') || '';
+
+    // 请求配置
+    var options = {
+      url: url,
+      method: method,
+      header: {
+        'Content-Type': 'application/json'
+      },
+      success: function success(res) {
+        resolve(res);
+      },
+      fail: function fail(err) {
+        console.error('API请求失败:', err);
+        reject(err);
+      }
+    };
+
+    // 如果有token，添加到请求头
+    if (token) {
+      options.header.Authorization = "Bearer ".concat(token);
+    }
+
+    // 如果有数据，添加到请求体
+    if (data) {
+      options.data = data;
+    }
+
+    // 发送请求
+    uni.request(options);
+  });
+};
+
+// 导出API函数
+var _default = {
+  // 用户登录
+  login: function login(code, userInfo) {
+    return request("".concat(BASE_URL, "/api/wechat/login"), 'POST', {
+      code: code,
+      userInfo: userInfo
+    });
+  },
+  // 获取用户信息
+  getUserInfo: function getUserInfo(userId) {
+    return request("".concat(BASE_URL, "/api/collections/users/records/").concat(userId), 'GET');
+  },
+  // 同步用户学习记录
+  syncUserData: function syncUserData(userId, data) {
+    return request("".concat(BASE_URL, "/api/collections/user_data/records"), 'POST', {
+      user: userId,
+      data: JSON.stringify(data),
+      updated: new Date().toISOString()
+    });
+  },
+  // 获取用户学习记录
+  getUserData: function getUserData(userId) {
+    return request("".concat(BASE_URL, "/api/collections/user_data/records?filter=(user='").concat(userId, "')&sort=-updated&limit=1"), 'GET');
+  },
+  // 收藏单词
+  favoriteWord: function favoriteWord(userId, wordId, isFavorite) {
+    return request("".concat(BASE_URL, "/api/collections/favorites/records"), 'POST', {
+      user: userId,
+      word: wordId,
+      isFavorite: isFavorite,
+      created: new Date().toISOString()
+    });
+  },
+  // 获取用户收藏的单词列表
+  getFavorites: function getFavorites(userId) {
+    return request("".concat(BASE_URL, "/api/collections/favorites/records?filter=(user='").concat(userId, "'%26%26isFavorite=true)&expand=word"), 'GET');
+  }
+};
+exports.default = _default;
+/* WEBPACK VAR INJECTION */}.call(this, __webpack_require__(/*! ./node_modules/@dcloudio/uni-mp-weixin/dist/index.js */ 2)["default"]))
+
 /***/ })
 ]]);
 //# sourceMappingURL=../../.sourcemap/mp-weixin/common/vendor.js.map

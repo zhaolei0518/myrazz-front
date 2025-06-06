@@ -212,7 +212,7 @@ var _wordbiz = _interopRequireDefault(__webpack_require__(/*! @/components/wordb
 //
 var cardBox = function cardBox() {
   __webpack_require__.e(/*! require.ensure | pages/cardDetail/card-box */ "pages/cardDetail/card-box").then((function () {
-    return resolve(__webpack_require__(/*! ./card-box */ 76));
+    return resolve(__webpack_require__(/*! ./card-box */ 77));
   }).bind(null, __webpack_require__)).catch(__webpack_require__.oe);
 };
 var _default = {
